@@ -44,7 +44,65 @@ const onlineUsers = new Set();
 
 const extractFirstUrl = (text = "") => {
   const match = text.match(/https?:\/\/[^\s]+/i);
-  return match ? match[0] : null;
+  if (!match) return null;
+
+  return match[0].replace(/[),.!?]+$/g, "");
+};
+
+const getYouTubeVideoId = (url) => {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace("www.", "").toLowerCase();
+
+    if (host === "youtu.be") {
+      return parsed.pathname.split("/").filter(Boolean)[0] || null;
+    }
+
+    if (host.includes("youtube.com")) {
+      if (parsed.pathname === "/watch") {
+        return parsed.searchParams.get("v");
+      }
+
+      const pathParts = parsed.pathname.split("/").filter(Boolean);
+      const embedIndex = pathParts.findIndex((part) => part === "embed" || part === "shorts");
+      if (embedIndex >= 0 && pathParts[embedIndex + 1]) {
+        return pathParts[embedIndex + 1];
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const buildYouTubePreview = async (url) => {
+  const videoId = getYouTubeVideoId(url);
+  if (!videoId) return null;
+
+  let title = "YouTube video";
+  let author = "YouTube";
+
+  try {
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+    const response = await fetch(oembedUrl);
+
+    if (response.ok) {
+      const data = await response.json();
+      title = data.title || title;
+      author = data.author_name || author;
+    }
+  } catch {
+    // Fall back to a static preview when oEmbed fails.
+  }
+
+  return {
+    url,
+    title,
+    description: `By ${author}`,
+    image: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+    siteName: "YouTube",
+  };
 };
 
 const buildFallbackLinkPreview = (url) => {
@@ -60,6 +118,16 @@ const buildFallbackLinkPreview = (url) => {
   } catch {
     return null;
   }
+};
+
+const buildLinkPreview = async (text) => {
+  const firstUrl = extractFirstUrl(text || "");
+  if (!firstUrl) return null;
+
+  const youtubePreview = await buildYouTubePreview(firstUrl);
+  if (youtubePreview) return youtubePreview;
+
+  return buildFallbackLinkPreview(firstUrl);
 };
 
 connectDB(mongoURI);
@@ -138,8 +206,7 @@ io.on("connection", (socket) => {
   io.emit(ONLINE_USERS, Array.from(onlineUsers));
 
   socket.on(NEW_MESSAGE, async ({ chatId, members, message, replyTo = null }) => {
-    const firstUrl = extractFirstUrl(message || "");
-    const linkPreview = firstUrl ? buildFallbackLinkPreview(firstUrl) : null;
+    const linkPreview = await buildLinkPreview(message || "");
 
     const messageForRealTime = {
       content: message,

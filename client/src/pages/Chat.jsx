@@ -266,7 +266,9 @@ const Chat = ({ chatId, user }) => {
           if (!isTargetMessage) return msg;
 
           const alreadySeen = (msg.seenBy || []).some(
-            (entry) => (entry.user?._id || entry.user) === data.userId
+            (entry) =>
+              (entry.user?._id || entry.user)?.toString() ===
+              data.userId?.toString()
           );
 
           if (alreadySeen) return msg;

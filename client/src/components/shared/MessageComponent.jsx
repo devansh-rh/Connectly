@@ -55,7 +55,7 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
 
   const sameSender = sender?._id === user?._id;
 
-  const timeAgo = moment(createdAt).fromNow();
+  const sentTime = moment(createdAt).format("DD MMM YYYY, hh:mm:ss A");
 
   const reactionMap = reactions.reduce((acc, reaction) => {
     const key = reaction.emoji;
@@ -75,6 +75,10 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
   const seenByOthers = seenBy.filter(
     (entry) => (entry.user?._id || entry.user)?.toString() !== user?._id?.toString()
   );
+  const latestSeenAt = seenByOthers
+    .map((entry) => entry.seenAt)
+    .filter(Boolean)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
 
   return (
     <motion.div
@@ -234,7 +238,7 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
               fontSize: "0.75rem",
             }}
           >
-            {timeAgo}
+            {sameSender ? `Sent: ${sentTime}` : `Received: ${sentTime}`}
           </Typography>
           {sameSender && (
             <Tooltip
@@ -248,12 +252,28 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
                 sx={{
                   fontSize: "0.9rem",
                   opacity: 0.7,
-                  color: seenByOthers.length > 0 ? "#22d3ee" : "inherit",
+                  color: seenByOthers.length > 0 ? "#00a8ff" : "inherit",
                 }}
               />
             </Tooltip>
           )}
         </Box>
+
+        {sameSender && latestSeenAt && (
+          <Typography
+            variant="caption"
+            sx={{
+              display: "block",
+              textAlign: "right",
+              opacity: 0.78,
+              color: "#7dd3fc",
+              fontSize: "0.72rem",
+              mt: 0.1,
+            }}
+          >
+            Read: {moment(latestSeenAt).format("DD MMM YYYY, hh:mm:ss A")}
+          </Typography>
+        )}
       </Box>
 
       <Stack direction="row" spacing={0.5} sx={{ mt: 0.4, ml: sameSender ? 0 : 0.5 }}>
