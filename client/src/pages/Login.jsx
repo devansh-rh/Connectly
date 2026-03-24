@@ -161,7 +161,7 @@ const Login = () => {
         <Paper
           elevation={10}
           sx={{
-            padding: 4,
+            padding: "1.5rem",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -170,21 +170,33 @@ const Login = () => {
             border: "1px solid rgba(124, 58, 237, 0.2)",
             borderRadius: "1.5rem",
             transition: "all 0.3s ease",
+            maxHeight: "95vh",
+            overflowY: "auto",
             "&:hover": {
               border: "1px solid rgba(124, 58, 237, 0.4)",
               boxShadow: "0 8px 32px rgba(124, 58, 237, 0.15)",
             },
+            "&::-webkit-scrollbar": {
+              width: "6px",
+            },
+            "&::-webkit-scrollbar-track": {
+              backgroundColor: "transparent",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: "rgba(124, 58, 237, 0.3)",
+              borderRadius: "3px",
+            },
           }}
         >
           <Typography
-            variant="h4"
+            variant="h5"
             sx={{
               background: accentGradient,
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               backgroundClip: "text",
               fontWeight: 700,
-              marginBottom: "2rem",
+              marginBottom: "0.75rem",
             }}
           >
             Connectly
@@ -193,15 +205,15 @@ const Login = () => {
           {isLogin ? (
             <>
               <Typography
-                variant="h5"
-                sx={{ color: "#e2e8f0", fontWeight: 600, marginBottom: "1rem" }}
+                variant="body2"
+                sx={{ color: "#e2e8f0", fontWeight: 600, marginBottom: "0.25rem" }}
               >
                 Welcome Back
               </Typography>
               <form
                 style={{
                   width: "100%",
-                  marginTop: "1rem",
+                  marginTop: "0.5rem",
                 }}
                 onSubmit={handleLogin}
               >
@@ -209,8 +221,9 @@ const Login = () => {
                   required
                   fullWidth
                   label="Username"
-                  margin="normal"
+                  margin="dense"
                   variant="outlined"
+                  size="small"
                   value={username.value}
                   onChange={username.changeHandler}
                   sx={{
@@ -242,8 +255,9 @@ const Login = () => {
                   fullWidth
                   label="Password"
                   type="password"
-                  margin="normal"
+                  margin="dense"
                   variant="outlined"
+                  size="small"
                   value={password.value}
                   onChange={password.changeHandler}
                   sx={{
@@ -268,12 +282,12 @@ const Login = () => {
 
                 <Button
                   sx={{
-                    marginTop: "1.5rem",
+                    marginTop: "0.75rem",
                     background: accentGradient,
                     color: "white",
                     fontWeight: 600,
-                    fontSize: "1rem",
-                    padding: "0.75rem",
+                    fontSize: "0.9rem",
+                    padding: "0.5rem",
                     transition: "all 0.3s ease",
                     boxShadow: "0 4px 15px rgba(124, 58, 237, 0.3)",
                     "&:hover": {
@@ -291,8 +305,8 @@ const Login = () => {
 
                 <Typography
                   textAlign={"center"}
-                  m={"1.5rem"}
-                  sx={{ color: "rgba(226, 232, 240, 0.5)" }}
+                  m={"0.5rem 0"}
+                  sx={{ color: "rgba(226, 232, 240, 0.5)", fontSize: "0.875rem" }}
                 >
                   OR
                 </Typography>
@@ -301,6 +315,7 @@ const Login = () => {
                   disabled={isLoading}
                   fullWidth
                   variant="outlined"
+                  size="small"
                   onClick={toggleLogin}
                   sx={{
                     color: accentSecondary,
@@ -320,23 +335,23 @@ const Login = () => {
           ) : (
             <>
               <Typography
-                variant="h5"
-                sx={{ color: "#e2e8f0", fontWeight: 600, marginBottom: "1rem" }}
+                variant="body1"
+                sx={{ color: "#e2e8f0", fontWeight: 600, marginBottom: "0.5rem" }}
               >
                 Create Account
               </Typography>
               <form
                 style={{
                   width: "100%",
-                  marginTop: "1rem",
+                  marginTop: "0.5rem",
                 }}
                 onSubmit={handleSignUp}
               >
-                <Stack position={"relative"} width={"10rem"} margin={"auto"}>
+                <Stack position={"relative"} width={"6.5rem"} margin={"0 auto 0.5rem"}>
                   <Avatar
                     sx={{
-                      width: "10rem",
-                      height: "10rem",
+                      width: "6.5rem",
+                      height: "6.5rem",
                       objectFit: "contain",
                       border: "3px solid rgba(124, 58, 237, 0.3)",
                     }}
@@ -370,7 +385,7 @@ const Login = () => {
 
                 {avatar.error && (
                   <Typography
-                    m={"1rem auto"}
+                    m={"0.25rem auto 0.5rem"}
                     width={"fit-content"}
                     display={"block"}
                     color="error"
@@ -384,7 +399,8 @@ const Login = () => {
                   required
                   fullWidth
                   label="Name"
-                  margin="normal"
+                  margin="dense"
+                  size="small"
                   variant="outlined"
                   value={name.value}
                   onChange={name.changeHandler}
@@ -411,7 +427,8 @@ const Login = () => {
                   required
                   fullWidth
                   label="Bio"
-                  margin="normal"
+                  margin="dense"
+                  size="small"
                   variant="outlined"
                   value={bio.value}
                   onChange={bio.changeHandler}
@@ -437,8 +454,9 @@ const Login = () => {
                   required
                   fullWidth
                   label="Username"
-                  margin="normal"
+                  margin="dense"
                   variant="outlined"
+                  size="small"
                   value={username.value}
                   onChange={username.changeHandler}
                   sx={{
@@ -471,8 +489,9 @@ const Login = () => {
                   fullWidth
                   label="Password"
                   type="password"
-                  margin="normal"
+                  margin="dense"
                   variant="outlined"
+                  size="small"
                   value={password.value}
                   onChange={password.changeHandler}
                   sx={{
@@ -496,12 +515,12 @@ const Login = () => {
 
                 <Button
                   sx={{
-                    marginTop: "1.5rem",
+                    marginTop: "0.75rem",
                     background: accentGradient,
                     color: "white",
                     fontWeight: 600,
-                    fontSize: "1rem",
-                    padding: "0.75rem",
+                    fontSize: "0.9rem",
+                    padding: "0.5rem",
                     transition: "all 0.3s ease",
                     boxShadow: "0 4px 15px rgba(124, 58, 237, 0.3)",
                     "&:hover": {
@@ -519,8 +538,8 @@ const Login = () => {
 
                 <Typography
                   textAlign={"center"}
-                  m={"1.5rem"}
-                  sx={{ color: "rgba(226, 232, 240, 0.5)" }}
+                  m={"0.5rem 0"}
+                  sx={{ color: "rgba(226, 232, 240, 0.5)", fontSize: "0.875rem" }}
                 >
                   OR
                 </Typography>
@@ -529,6 +548,7 @@ const Login = () => {
                   disabled={isLoading}
                   fullWidth
                   variant="outlined"
+                  size="small"
                   onClick={toggleLogin}
                   sx={{
                     color: accentSecondary,
