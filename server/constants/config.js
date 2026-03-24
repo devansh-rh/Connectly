@@ -13,12 +13,28 @@ const allowedOrigins = [
   ...configuredClientOrigins,
 ];
 
+const isTrustedVercelOrigin = (origin = "") =>
+  /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin);
+
+const isOriginAllowed = (origin = "") => {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return true;
+
+  return (
+    allowedOrigins.includes(normalized) || isTrustedVercelOrigin(normalized)
+  );
+};
+
 const corsOptions = {
-  origin: allowedOrigins,
+  origin: (origin, callback) => {
+    if (isOriginAllowed(origin)) return callback(null, true);
+
+    return callback(new Error("CORS origin not allowed"));
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
 };
 
 const CONNECTLY_TOKEN = "connectly-token";
 
-export { corsOptions, CONNECTLY_TOKEN };
+export { corsOptions, CONNECTLY_TOKEN, allowedOrigins, isOriginAllowed };

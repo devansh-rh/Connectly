@@ -19,7 +19,7 @@ import {
 } from "./constants/events.js";
 import { getSockets } from "./lib/helper.js";
 import { Message } from "./models/message.js";
-import { corsOptions } from "./constants/config.js";
+import { corsOptions, isOriginAllowed } from "./constants/config.js";
 import { socketAuthenticator } from "./middlewares/auth.js";
 
 import userRoute from "./routes/user.js";
@@ -59,16 +59,8 @@ app.use(cookieParser());
 
 // Hardened CORS middleware for production
 app.use((req, res, next) => {
-  const clientUrl = (process.env.CLIENT_URL || "").trim().replace(/\/+$/, "");
-  const allowedOrigins = [
-    "http://localhost:5173",
-    "http://localhost:4173",
-    clientUrl,
-    "https://connectly-bice-theta.vercel.app",
-  ].filter(Boolean);
-
   const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
+  if (isOriginAllowed(origin)) {
     res.header("Access-Control-Allow-Origin", origin);
     res.header("Access-Control-Allow-Credentials", "true");
     res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
