@@ -4,6 +4,10 @@ import {
   Backdrop,
   Badge,
   Box,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Divider,
   IconButton,
   Menu,
   Toolbar,
@@ -44,6 +48,7 @@ const Header = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [profileAnchorEl, setProfileAnchorEl] = useState(null);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   const { isSearch, isNotification, isNewGroup } = useSelector(
     (state) => state.misc
@@ -71,6 +76,10 @@ const Header = () => {
   const openProfile = (event) => setProfileAnchorEl(event.currentTarget);
 
   const closeProfile = () => setProfileAnchorEl(null);
+
+  const openAboutDialog = () => setIsAboutOpen(true);
+
+  const closeAboutDialog = () => setIsAboutOpen(false);
 
   const logoutHandler = async () => {
     try {
@@ -100,7 +109,15 @@ const Header = () => {
                 display: { xs: "none", sm: "flex" },
                 alignItems: "center",
                 gap: "0.5rem",
+                cursor: "pointer",
+                borderRadius: "0.65rem",
+                padding: "0.25rem 0.45rem",
+                transition: "all 0.25s ease",
+                "&:hover": {
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                },
               }}
+              onClick={openAboutDialog}
             >
               <Box
                 component="img"
@@ -222,6 +239,55 @@ const Header = () => {
       >
         <Profile user={user} isPopup />
       </Menu>
+
+      <Dialog
+        open={isAboutOpen}
+        onClose={closeAboutDialog}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: "1rem",
+            backgroundColor: "#15162b",
+            border: "1px solid rgba(124, 58, 237, 0.3)",
+            color: "#e2e8f0",
+          },
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h6" fontWeight={700}>
+            About The Developer
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: "0.25rem !important" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: "0.75rem", mb: 1.2 }}>
+            <Avatar sx={{ bgcolor: "rgba(124, 58, 237, 0.25)", color: "#fff" }}>D</Avatar>
+            <Box>
+              <Typography variant="body1" fontWeight={700}>
+                Devansh Rohilla
+              </Typography>
+              <Typography variant="caption" sx={{ color: "rgba(226, 232, 240, 0.7)" }}>
+                Full Stack Developer
+              </Typography>
+            </Box>
+          </Box>
+
+          <Divider sx={{ borderColor: "rgba(124, 58, 237, 0.25)", mb: 1.2 }} />
+
+          <Typography variant="body2" sx={{ mb: 0.8 }}>
+            Project: Connectly
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 0.8 }}>
+            Built with: React, Node.js, Express, MongoDB, Socket.IO
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 0.8 }}>
+            Focus: Real-time chat, clean UI, and smooth user experience
+          </Typography>
+          <Typography variant="body2">
+            GitHub: github.com/devansh-rh
+          </Typography>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
