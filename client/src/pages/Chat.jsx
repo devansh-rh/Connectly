@@ -2,11 +2,12 @@ import React, {
   Fragment,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
 import AppLayout from "../components/layout/AppLayout";
-import { Box, IconButton, Popover, Skeleton, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { Box, IconButton, Popover, Skeleton, Stack, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { darkBg, accentPrimary, accentSecondary } from "../constants/color";
 import {
   AttachFile as AttachFileIcon,
@@ -35,6 +36,8 @@ import { TypingLoader } from "../components/layout/Loaders";
 import { useNavigate } from "react-router-dom";
 
 const Chat = ({ chatId, user }) => {
+  const RECENT_EMOJIS_KEY = "connectly_recent_emojis";
+
   const socket = getSocket();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -48,6 +51,15 @@ const Chat = ({ chatId, user }) => {
   const [fileMenuAnchor, setFileMenuAnchor] = useState(null);
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [activeEmojiTab, setActiveEmojiTab] = useState(0);
+  const [emojiSearch, setEmojiSearch] = useState("");
+  const [recentEmojis, setRecentEmojis] = useState(() => {
+    try {
+      const stored = localStorage.getItem(RECENT_EMOJIS_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const [IamTyping, setIamTyping] = useState(false);
   const [userTyping, setUserTyping] = useState(false);
@@ -73,6 +85,10 @@ const Chat = ({ chatId, user }) => {
   const members = chatDetails?.data?.chat?.members;
 
   const emojiGroups = [
+    {
+      label: "Recent",
+      emojis: recentEmojis,
+    },
     {
       label: "Smileys",
       emojis: ["😀", "😄", "😁", "😆", "😊", "😍", "🥰", "😘", "🤩", "😎", "🥳", "🤗", "🤭", "😇", "🤓", "😌", "😋", "😜", "🤪", "😏", "🙃", "😺", "😸", "😹"],
@@ -124,10 +140,19 @@ const Chat = ({ chatId, user }) => {
 
   const openEmojiPicker = (event) => setEmojiAnchorEl(event.currentTarget);
 
-  const closeEmojiPicker = () => setEmojiAnchorEl(null);
+  const closeEmojiPicker = () => {
+    setEmojiAnchorEl(null);
+    setEmojiSearch("");
+  };
 
   const addEmojiToMessage = (emoji) => {
     setMessage((prev) => `${prev}${emoji}`);
+
+    setRecentEmojis((prev) => {
+      const next = [emoji, ...prev.filter((item) => item !== emoji)].slice(0, 24);
+      localStorage.setItem(RECENT_EMOJIS_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -209,6 +234,12 @@ const Chat = ({ chatId, user }) => {
 
   const allMessages = [...oldMessages, ...messages];
   const isEmojiPickerOpen = Boolean(emojiAnchorEl);
+  const activeEmojis = emojiGroups[activeEmojiTab]?.emojis || [];
+  const filteredEmojis = useMemo(() => {
+    if (!emojiSearch.trim()) return activeEmojis;
+
+    return activeEmojis.filter((emoji) => emoji.includes(emojiSearch.trim()));
+  }, [activeEmojis, emojiSearch]);
 
   return chatDetails.isLoading ? (
     <Skeleton />
@@ -361,6 +392,29 @@ const Chat = ({ chatId, user }) => {
           <Typography variant="caption" sx={{ color: "rgba(226, 232, 240, 0.75)", display: "block", mb: 0.8 }}>
             Pick an emoji
           </Typography>
+          <TextField
+            size="small"
+            value={emojiSearch}
+            onChange={(e) => setEmojiSearch(e.target.value)}
+            placeholder="Search emoji"
+            fullWidth
+            sx={{
+              mb: 1,
+              "& .MuiOutlinedInput-root": {
+                color: "#e2e8f0",
+                backgroundColor: "rgba(255,255,255,0.03)",
+                "& fieldset": {
+                  borderColor: "rgba(124, 58, 237, 0.35)",
+                },
+                "&:hover fieldset": {
+                  borderColor: "rgba(124, 58, 237, 0.5)",
+                },
+                "&.Mui-focused fieldset": {
+                  borderColor: accentPrimary,
+                },
+              },
+            }}
+          />
           <Box
             sx={{
               display: "grid",
@@ -376,7 +430,7 @@ const Chat = ({ chatId, user }) => {
               },
             }}
           >
-            {emojiGroups[activeEmojiTab].emojis.map((emoji) => (
+            {filteredEmojis.map((emoji) => (
               <IconButton
                 key={`${emoji}-${activeEmojiTab}`}
                 onClick={() => addEmojiToMessage(emoji)}
@@ -394,6 +448,11 @@ const Chat = ({ chatId, user }) => {
               </IconButton>
             ))}
           </Box>
+          {activeEmojiTab === 0 && filteredEmojis.length === 0 && (
+            <Typography variant="caption" sx={{ color: "rgba(226, 232, 240, 0.65)", mt: 1, display: "block" }}>
+              No recent emojis yet. Pick any emoji to start building your recent list.
+            </Typography>
+          )}
         </Box>
       </Popover>
 
