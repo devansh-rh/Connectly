@@ -287,31 +287,48 @@ const Chat = ({ chatId, user }) => {
           height={"100%"}
           padding={"1rem"}
           alignItems={"center"}
-          position={"relative"}
+          justifyContent={"center"}
+          spacing={0.8}
         >
           <IconButton
             sx={{
-              position: "absolute",
-              left: "1.5rem",
               rotate: "30deg",
+              width: "2.75rem",
+              height: "2.75rem",
+              borderRadius: "0.9rem",
+              color: "#e2e8f0",
+              backgroundColor: "rgba(26, 26, 46, 0.9)",
+              border: "1px solid rgba(124, 58, 237, 0.35)",
+              transition: "all 0.25s ease",
+              "&:hover": {
+                backgroundColor: "rgba(124, 58, 237, 0.2)",
+                transform: "translateY(-1px)",
+              },
             }}
             onClick={handleFileOpen}
           >
             <AttachFileIcon />
           </IconButton>
 
-          <InputBox
-            placeholder="Type Message Here..."
-            value={message}
-            onChange={messageOnChange}
-          />
+          <Box sx={{ width: "min(62vw, 680px)", height: "3.15rem" }}>
+            <InputBox
+              placeholder="Type Message Here..."
+              value={message}
+              onChange={messageOnChange}
+              style={{
+                height: "100%",
+                padding: "0 1rem",
+                borderRadius: "1rem",
+              }}
+            />
+          </Box>
 
           <IconButton
             onClick={openEmojiPicker}
             sx={{
-              marginLeft: "0.75rem",
-              width: "2.5rem",
-              height: "2.5rem",
+              width: "2.75rem",
+              height: "2.75rem",
+              borderRadius: "0.9rem",
               color: "#facc15",
               backgroundColor: "rgba(26, 26, 46, 0.9)",
               border: "1px solid rgba(124, 58, 237, 0.35)",
@@ -333,7 +350,6 @@ const Chat = ({ chatId, user }) => {
               borderRadius: "0.9rem",
               background: `linear-gradient(135deg, ${accentPrimary} 0%, ${accentSecondary} 100%)`,
               color: "white",
-              marginLeft: "0.65rem",
               boxShadow: "0 8px 20px rgba(124, 58, 237, 0.35)",
               transition: "all 0.3s ease",
               "&:hover": {

@@ -13,6 +13,33 @@ import RenderAttachment from "./RenderAttachment";
 import { motion } from "framer-motion";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 
+const emojiSplitRegex = /([\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}])/gu;
+const emojiTestRegex = /^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]$/u;
+
+const renderContentWithLargerEmojis = (text) => {
+  const parts = text.split(emojiSplitRegex).filter(Boolean);
+
+  return parts.map((part, index) => {
+    if (emojiTestRegex.test(part)) {
+      return (
+        <Box
+          key={`emoji-${index}`}
+          component="span"
+          sx={{
+            fontSize: "1.2em",
+            lineHeight: 1,
+            verticalAlign: "-0.06em",
+          }}
+        >
+          {part}
+        </Box>
+      );
+    }
+
+    return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>;
+  });
+};
+
 const MessageComponent = ({ message, user }) => {
   const { sender, content, attachments = [], createdAt } = message;
 
@@ -75,7 +102,7 @@ const MessageComponent = ({ message, user }) => {
               wordBreak: "break-word",
             }}
           >
-            {content}
+            {renderContentWithLargerEmojis(content)}
           </Typography>
         )}
 
