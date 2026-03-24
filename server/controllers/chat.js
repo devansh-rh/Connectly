@@ -10,11 +10,33 @@ import {
   ALERT,
   NEW_MESSAGE,
   NEW_MESSAGE_ALERT,
+  NEW_REACTION,
+  NEW_READ_RECEIPT,
   REFETCH_CHATS,
 } from "../constants/events.js";
 import { getOtherMember } from "../lib/helper.js";
 import { User } from "../models/user.js";
 import { Message } from "../models/message.js";
+
+const extractFirstUrl = (text = "") => {
+  const match = text.match(/https?:\/\/[^\s]+/i);
+  return match ? match[0] : null;
+};
+
+const buildFallbackLinkPreview = (url) => {
+  try {
+    const parsed = new URL(url);
+    return {
+      url,
+      title: parsed.hostname,
+      description: `Open ${parsed.hostname}`,
+      image: "",
+      siteName: parsed.hostname,
+    };
+  } catch {
+    return null;
+  }
+};
 
 const newGroupChat = TryCatch(async (req, res, next) => {
   const { name, members } = req.body;
@@ -40,7 +62,7 @@ const newGroupChat = TryCatch(async (req, res, next) => {
 const getMyChats = TryCatch(async (req, res, next) => {
   const chats = await Chat.find({ members: req.user }).populate(
     "members",
-    "name avatar"
+    "name avatar status lastSeen"
   );
 
   const transformedChats = chats.map(({ _id, name, members, groupChat }) => {
@@ -53,6 +75,12 @@ const getMyChats = TryCatch(async (req, res, next) => {
         ? members.slice(0, 3).map(({ avatar }) => avatar.url)
         : [otherMember.avatar.url],
       name: groupChat ? name : otherMember.name,
+      directMeta: groupChat
+        ? null
+        : {
+            status: otherMember.status || { state: "online", text: "" },
+            lastSeen: otherMember.lastSeen,
+          },
       members: members.reduce((prev, curr) => {
         if (curr._id.toString() !== req.user.toString()) {
           prev.push(curr._id);
@@ -243,6 +271,7 @@ const sendAttachments = TryCatch(async (req, res, next) => {
     attachments,
     sender: me._id,
     chat: chatId,
+    seenBy: [{ user: me._id, seenAt: new Date() }],
   };
 
   const messageForRealTime = {
@@ -271,15 +300,17 @@ const sendAttachments = TryCatch(async (req, res, next) => {
 const getChatDetails = TryCatch(async (req, res, next) => {
   if (req.query.populate === "true") {
     const chat = await Chat.findById(req.params.id)
-      .populate("members", "name avatar")
+      .populate("members", "name avatar status lastSeen")
       .lean();
 
     if (!chat) return next(new ErrorHandler("Chat not found", 404));
 
-    chat.members = chat.members.map(({ _id, name, avatar }) => ({
+    chat.members = chat.members.map(({ _id, name, avatar, status, lastSeen }) => ({
       _id,
       name,
       avatar: avatar.url,
+      status,
+      lastSeen,
     }));
 
     return res.status(200).json({
@@ -394,6 +425,14 @@ const getMessages = TryCatch(async (req, res, next) => {
       .skip(skip)
       .limit(resultPerPage)
       .populate("sender", "name")
+      .populate({
+        path: "replyTo",
+        select: "content sender createdAt",
+        populate: {
+          path: "sender",
+          select: "name",
+        },
+      })
       .lean(),
     Message.countDocuments({ chat: chatId }),
   ]);
@@ -404,6 +443,110 @@ const getMessages = TryCatch(async (req, res, next) => {
     success: true,
     messages: messages.reverse(),
     totalPages,
+  });
+});
+
+const reactToMessage = TryCatch(async (req, res, next) => {
+  const { chatId, messageId, emoji } = req.body;
+
+  const [chat, message] = await Promise.all([
+    Chat.findById(chatId),
+    Message.findById(messageId),
+  ]);
+
+  if (!chat) return next(new ErrorHandler("Chat not found", 404));
+  if (!message) return next(new ErrorHandler("Message not found", 404));
+  if (message.chat.toString() !== chatId.toString()) {
+    return next(new ErrorHandler("Message does not belong to this chat", 400));
+  }
+
+  if (!chat.members.some((member) => member.toString() === req.user.toString())) {
+    return next(new ErrorHandler("You are not allowed to react in this chat", 403));
+  }
+
+  const reactionIndex = message.reactions.findIndex(
+    (reaction) =>
+      reaction.user.toString() === req.user.toString() && reaction.emoji === emoji
+  );
+
+  if (reactionIndex >= 0) {
+    message.reactions.splice(reactionIndex, 1);
+  } else {
+    message.reactions.push({ emoji, user: req.user });
+  }
+
+  await message.save();
+
+  emitEvent(req, NEW_REACTION, chat.members, {
+    chatId,
+    messageId,
+    reactions: message.reactions,
+  });
+
+  return res.status(200).json({
+    success: true,
+    reactions: message.reactions,
+    message: "Reaction updated",
+  });
+});
+
+const markMessagesRead = TryCatch(async (req, res, next) => {
+  const { chatId, messageIds = [] } = req.body;
+
+  const chat = await Chat.findById(chatId);
+  if (!chat) return next(new ErrorHandler("Chat not found", 404));
+
+  if (!chat.members.some((member) => member.toString() === req.user.toString())) {
+    return next(new ErrorHandler("You are not allowed to access this chat", 403));
+  }
+
+  const targetMessages = await Message.find({
+    _id: { $in: messageIds },
+    chat: chatId,
+  });
+
+  const updatedMessageIds = [];
+
+  for (const message of targetMessages) {
+    const alreadySeen = message.seenBy.some(
+      (entry) => entry.user.toString() === req.user.toString()
+    );
+
+    if (!alreadySeen) {
+      message.seenBy.push({ user: req.user, seenAt: new Date() });
+      await message.save();
+      updatedMessageIds.push(message._id.toString());
+    }
+  }
+
+  if (updatedMessageIds.length > 0) {
+    emitEvent(req, NEW_READ_RECEIPT, chat.members, {
+      chatId,
+      messageIds: updatedMessageIds,
+      userId: req.user,
+      seenAt: new Date().toISOString(),
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    updatedMessageIds,
+    message: "Read receipts updated",
+  });
+});
+
+const getLinkPreview = TryCatch(async (req, res, next) => {
+  const { url } = req.query;
+
+  if (!url) return next(new ErrorHandler("URL is required", 400));
+
+  const preview = buildFallbackLinkPreview(url);
+
+  if (!preview) return next(new ErrorHandler("Invalid URL", 400));
+
+  return res.status(200).json({
+    success: true,
+    preview,
   });
 });
 
@@ -419,4 +562,7 @@ export {
   renameGroup,
   deleteChat,
   getMessages,
+  reactToMessage,
+  markMessagesRead,
+  getLinkPreview,
 };

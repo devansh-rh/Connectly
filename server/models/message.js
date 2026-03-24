@@ -27,6 +27,44 @@ const schema = new Schema(
       ref: "Chat",
       required: true,
     },
+    replyTo: {
+      type: Types.ObjectId,
+      ref: "Message",
+      default: null,
+    },
+    reactions: [
+      {
+        emoji: {
+          type: String,
+          required: true,
+        },
+        user: {
+          type: Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+      },
+    ],
+    seenBy: [
+      {
+        user: {
+          type: Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        seenAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    linkPreview: {
+      url: String,
+      title: String,
+      description: String,
+      image: String,
+      siteName: String,
+    },
   },
   {
     timestamps: true,

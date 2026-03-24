@@ -31,6 +31,21 @@ const schema = new Schema(
         required: true,
       },
     },
+    status: {
+      state: {
+        type: String,
+        enum: ["online", "away", "dnd", "invisible"],
+        default: "online",
+      },
+      text: {
+        type: String,
+        default: "",
+      },
+    },
+    lastSeen: {
+      type: Date,
+      default: Date.now,
+    },
   },
   {
     timestamps: true,

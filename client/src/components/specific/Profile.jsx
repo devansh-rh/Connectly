@@ -1,5 +1,15 @@
-import React, { useState, useRef } from "react";
-import { Avatar, Stack, Typography, IconButton, Box, CircularProgress } from "@mui/material";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Avatar,
+  Stack,
+  Typography,
+  IconButton,
+  Box,
+  CircularProgress,
+  TextField,
+  MenuItem,
+  Button,
+} from "@mui/material";
 import {
   Face as FaceIcon,
   AlternateEmail as UserNameIcon,
@@ -11,11 +21,22 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { transformImage } from "../../lib/features";
 import { server } from "../../constants/config";
+import { getSocket } from "../../socket";
+import { USER_SET_STATUS } from "../../constants/events";
 
 const Profile = ({ user, isPopup = false, onProfileUpdate }) => {
+  const socket = getSocket();
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const [statusState, setStatusState] = useState(user?.status?.state || "online");
+  const [statusText, setStatusText] = useState(user?.status?.text || "");
   const fileInputRef = useRef(null);
   const avatarSize = isPopup ? 96 : 200;
+
+  useEffect(() => {
+    setStatusState(user?.status?.state || "online");
+    setStatusText(user?.status?.text || "");
+  }, [user?.status?.state, user?.status?.text]);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -71,6 +92,31 @@ const Profile = ({ user, isPopup = false, onProfileUpdate }) => {
       console.error("Avatar upload error:", error);
     } finally {
       setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleSaveStatus = async () => {
+    try {
+      setIsSavingStatus(true);
+
+      const { data } = await axios.put(
+        `${server}/api/v1/user/status`,
+        { state: statusState, text: statusText },
+        { withCredentials: true }
+      );
+
+      socket.emit(USER_SET_STATUS, {
+        status: statusState,
+        statusText,
+      });
+
+      if (onProfileUpdate) onProfileUpdate(data.user);
+
+      toast.success("Status updated");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to update status");
+    } finally {
+      setIsSavingStatus(false);
     }
   };
 
@@ -158,6 +204,58 @@ const Profile = ({ user, isPopup = false, onProfileUpdate }) => {
         Icon={<CalendarIcon />}
         isPopup={isPopup}
       />
+
+      {isPopup && (
+        <Stack spacing={1} width={"100%"} sx={{ mt: 1 }}>
+          <TextField
+            select
+            label="Presence"
+            value={statusState}
+            size="small"
+            onChange={(e) => setStatusState(e.target.value)}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                color: "white",
+                "& fieldset": { borderColor: "rgba(124, 58, 237, 0.35)" },
+              },
+              "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.75)" },
+            }}
+          >
+            <MenuItem value="online">Online</MenuItem>
+            <MenuItem value="away">Away</MenuItem>
+            <MenuItem value="dnd">Do Not Disturb</MenuItem>
+            <MenuItem value="invisible">Invisible</MenuItem>
+          </TextField>
+
+          <TextField
+            value={statusText}
+            onChange={(e) => setStatusText(e.target.value.slice(0, 80))}
+            label="Status message"
+            size="small"
+            placeholder="Available for collaboration"
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                color: "white",
+                "& fieldset": { borderColor: "rgba(124, 58, 237, 0.35)" },
+              },
+              "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.75)" },
+            }}
+          />
+
+          <Button
+            variant="contained"
+            onClick={handleSaveStatus}
+            disabled={isSavingStatus}
+            sx={{
+              background: "linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)",
+              textTransform: "none",
+              fontWeight: 700,
+            }}
+          >
+            {isSavingStatus ? "Saving..." : "Update status"}
+          </Button>
+        </Stack>
+      )}
     </Stack>
   );
 };

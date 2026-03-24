@@ -81,6 +81,40 @@ const api = createApi({
       }),
     }),
 
+    reactToMessage: builder.mutation({
+      query: (data) => ({
+        url: "chat/message/reaction",
+        method: "PUT",
+        credentials: "include",
+        body: data,
+      }),
+    }),
+
+    markMessagesRead: builder.mutation({
+      query: (data) => ({
+        url: "chat/message/read",
+        method: "PUT",
+        credentials: "include",
+        body: data,
+      }),
+    }),
+
+    getLinkPreview: builder.query({
+      query: (url) => ({
+        url: `chat/link-preview?url=${encodeURIComponent(url)}`,
+        credentials: "include",
+      }),
+    }),
+
+    updateMyStatus: builder.mutation({
+      query: (data) => ({
+        url: "user/status",
+        method: "PUT",
+        credentials: "include",
+        body: data,
+      }),
+    }),
+
     myGroups: builder.query({
       query: () => ({
         url: "chat/my/groups",
@@ -172,6 +206,10 @@ export const {
   useChatDetailsQuery,
   useGetMessagesQuery,
   useSendAttachmentsMutation,
+  useReactToMessageMutation,
+  useMarkMessagesReadMutation,
+  useLazyGetLinkPreviewQuery,
+  useUpdateMyStatusMutation,
   useMyGroupsQuery,
   useAvailableFriendsQuery,
   useNewGroupMutation,

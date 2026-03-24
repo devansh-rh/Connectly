@@ -2,12 +2,15 @@ import express from "express";
 import {
   addMembers,
   deleteChat,
+  getLinkPreview,
   getChatDetails,
   getMessages,
+  markMessagesRead,
   getMyChats,
   getMyGroups,
   leaveGroup,
   newGroupChat,
+  reactToMessage,
   removeMember,
   renameGroup,
   sendAttachments,
@@ -33,6 +36,7 @@ app.use(isAuthenticated);
 app.post("/new", newGroupValidator(), validateHandler, newGroupChat);
 
 app.get("/my", getMyChats);
+app.get("/link-preview", getLinkPreview);
 
 app.get("/my/groups", getMyGroups);
 
@@ -55,6 +59,8 @@ app.post(
   validateHandler,
   sendAttachments
 );
+app.put("/message/reaction", reactToMessage);
+app.put("/message/read", markMessagesRead);
 
 // Get Messages
 app.get("/message/:id", chatIdValidator(), validateHandler, getMessages);

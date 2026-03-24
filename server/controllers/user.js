@@ -1,5 +1,5 @@
 import { compare } from "bcrypt";
-import { NEW_REQUEST, REFETCH_CHATS } from "../constants/events.js";
+import { NEW_REQUEST, REFETCH_CHATS, USER_STATUS_UPDATED } from "../constants/events.js";
 import { getOtherMember } from "../lib/helper.js";
 import { TryCatch } from "../middlewares/error.js";
 import { Chat } from "../models/chat.js";
@@ -93,10 +93,12 @@ const searchUser = TryCatch(async (req, res) => {
   });
 
   // Modifying the response
-  const users = allUsersExceptMeAndFriends.map(({ _id, name, avatar }) => ({
+  const users = allUsersExceptMeAndFriends.map(({ _id, name, avatar, status, lastSeen }) => ({
     _id,
     name,
     avatar: avatar.url,
+    status,
+    lastSeen,
   }));
 
   return res.status(200).json({
@@ -199,7 +201,7 @@ const getMyFriends = TryCatch(async (req, res) => {
   const chats = await Chat.find({
     members: req.user,
     groupChat: false,
-  }).populate("members", "name avatar");
+  }).populate("members", "name avatar status lastSeen");
 
   const friends = chats.map(({ members }) => {
     const otherUser = getOtherMember(members, req.user);
@@ -208,6 +210,8 @@ const getMyFriends = TryCatch(async (req, res) => {
       _id: otherUser._id,
       name: otherUser.name,
       avatar: otherUser.avatar.url,
+      status: otherUser.status,
+      lastSeen: otherUser.lastSeen,
     };
   });
 
@@ -264,6 +268,39 @@ const updateProfileImage = TryCatch(async (req, res, next) => {
   });
 });
 
+const updateMyStatus = TryCatch(async (req, res, next) => {
+  const { state, text = "" } = req.body;
+
+  const allowedStates = ["online", "away", "dnd", "invisible"];
+  const safeState = allowedStates.includes(state) ? state : "online";
+
+  const user = await User.findById(req.user);
+
+  if (!user) return next(new ErrorHandler("User not found", 404));
+
+  user.status = {
+    state: safeState,
+    text: String(text).slice(0, 80),
+  };
+  user.lastSeen = new Date();
+
+  await user.save();
+
+  const io = req.app.get("io");
+  io.emit(USER_STATUS_UPDATED, {
+    userId: user._id,
+    status: user.status.state,
+    statusText: user.status.text,
+    lastSeen: user.lastSeen,
+  });
+
+  return res.status(200).json({
+    success: true,
+    user,
+    message: "Status updated",
+  });
+});
+
 export {
   acceptFriendRequest,
   getMyFriends,
@@ -275,4 +312,5 @@ export {
   searchUser,
   sendFriendRequest,
   updateProfileImage,
+  updateMyStatus,
 };

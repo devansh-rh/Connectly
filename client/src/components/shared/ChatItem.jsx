@@ -3,6 +3,7 @@ import { Link } from "../styles/StyledComponents";
 import { Box, Stack, Typography } from "@mui/material";
 import AvatarCard from "./AvatarCard";
 import { motion } from "framer-motion";
+import moment from "moment";
 
 const ChatItem = ({
   avatar = [],
@@ -14,7 +15,15 @@ const ChatItem = ({
   newMessageAlert,
   index = 0,
   handleDeleteChat,
+  directMeta = null,
 }) => {
+  const statusLabel = isOnline
+    ? "Online"
+    : directMeta?.status?.text ||
+      (directMeta?.lastSeen
+        ? `Last seen ${moment(directMeta.lastSeen).fromNow()}`
+        : "Offline");
+
   return (
     <Link
       sx={{
@@ -41,6 +50,11 @@ const ChatItem = ({
 
         <Stack>
           <Typography>{name}</Typography>
+          {!groupChat && (
+            <Typography variant="caption" sx={{ opacity: 0.75 }}>
+              {statusLabel}
+            </Typography>
+          )}
           {newMessageAlert && (
             <Typography>{newMessageAlert.count} New Message</Typography>
           )}

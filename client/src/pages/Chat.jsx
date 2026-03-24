@@ -11,6 +11,7 @@ import { Box, IconButton, Popover, Skeleton, Stack, Tab, Tabs, TextField, Typogr
 import { darkBg, accentPrimary, accentSecondary } from "../constants/color";
 import {
   AttachFile as AttachFileIcon,
+  Close as CloseIcon,
   EmojiEmotions as EmojiIcon,
   Send as SendIcon,
 } from "@mui/icons-material";
@@ -22,11 +23,19 @@ import {
   ALERT,
   CHAT_JOINED,
   CHAT_LEAVED,
+  NEW_READ_RECEIPT,
+  NEW_REACTION,
   NEW_MESSAGE,
+  MESSAGE_READ,
   START_TYPING,
   STOP_TYPING,
 } from "../constants/events";
-import { useChatDetailsQuery, useGetMessagesQuery } from "../redux/api/api";
+import {
+  useChatDetailsQuery,
+  useGetMessagesQuery,
+  useMarkMessagesReadMutation,
+  useReactToMessageMutation,
+} from "../redux/api/api";
 import { useErrors, useSocketEvents } from "../hooks/hook";
 import { useInfiniteScrollTop } from "6pp";
 import { useDispatch } from "react-redux";
@@ -52,6 +61,7 @@ const Chat = ({ chatId, user }) => {
   const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
   const [activeEmojiTab, setActiveEmojiTab] = useState(0);
   const [emojiSearch, setEmojiSearch] = useState("");
+  const [replyTo, setReplyTo] = useState(null);
   const [recentEmojis, setRecentEmojis] = useState(() => {
     try {
       const stored = localStorage.getItem(RECENT_EMOJIS_KEY);
@@ -64,6 +74,9 @@ const Chat = ({ chatId, user }) => {
   const [IamTyping, setIamTyping] = useState(false);
   const [userTyping, setUserTyping] = useState(false);
   const typingTimeout = useRef(null);
+
+  const [reactToMessage] = useReactToMessageMutation();
+  const [markMessagesRead] = useMarkMessagesReadMutation();
 
   const chatDetails = useChatDetailsQuery({ chatId, skip: !chatId });
 
@@ -134,8 +147,28 @@ const Chat = ({ chatId, user }) => {
     if (!message.trim()) return;
 
     // Emitting the message to the server
-    socket.emit(NEW_MESSAGE, { chatId, members, message });
+    socket.emit(NEW_MESSAGE, {
+      chatId,
+      members,
+      message,
+      replyTo: replyTo
+        ? {
+            _id: replyTo._id,
+            content: replyTo.content,
+            sender: { name: replyTo.sender?.name },
+          }
+        : null,
+    });
     setMessage("");
+    setReplyTo(null);
+  };
+
+  const handleReact = async (messageId, emoji) => {
+    try {
+      await reactToMessage({ chatId, messageId, emoji });
+    } catch {
+      // Error toast is already handled globally by API hooks where needed.
+    }
   };
 
   const openEmojiPicker = (event) => setEmojiAnchorEl(event.currentTarget);
@@ -203,6 +236,56 @@ const Chat = ({ chatId, user }) => {
     [chatId]
   );
 
+  const reactionListener = useCallback(
+    (data) => {
+      if (data.chatId !== chatId) return;
+
+      const applyReactions = (list = []) =>
+        list.map((msg) =>
+          msg._id?.toString() === data.messageId?.toString()
+            ? { ...msg, reactions: data.reactions }
+            : msg
+        );
+
+      setMessages((prev) => applyReactions(prev));
+      setOldMessages((prev) => applyReactions(prev));
+    },
+    [chatId, setOldMessages]
+  );
+
+  const readReceiptListener = useCallback(
+    (data) => {
+      if (data.chatId !== chatId) return;
+
+      const applySeen = (list = []) =>
+        list.map((msg) => {
+          const isTargetMessage = data.messageIds.some(
+            (id) => id?.toString() === msg._id?.toString()
+          );
+
+          if (!isTargetMessage) return msg;
+
+          const alreadySeen = (msg.seenBy || []).some(
+            (entry) => (entry.user?._id || entry.user) === data.userId
+          );
+
+          if (alreadySeen) return msg;
+
+          return {
+            ...msg,
+            seenBy: [
+              ...(msg.seenBy || []),
+              { user: data.userId, seenAt: data.seenAt },
+            ],
+          };
+        });
+
+      setMessages((prev) => applySeen(prev));
+      setOldMessages((prev) => applySeen(prev));
+    },
+    [chatId, setOldMessages]
+  );
+
   const alertListener = useCallback(
     (data) => {
       if (data.chatId !== chatId) return;
@@ -224,6 +307,8 @@ const Chat = ({ chatId, user }) => {
   const eventHandler = {
     [ALERT]: alertListener,
     [NEW_MESSAGE]: newMessagesListener,
+    [NEW_REACTION]: reactionListener,
+    [NEW_READ_RECEIPT]: readReceiptListener,
     [START_TYPING]: startTypingListener,
     [STOP_TYPING]: stopTypingListener,
   };
@@ -233,6 +318,32 @@ const Chat = ({ chatId, user }) => {
   useErrors(errors);
 
   const allMessages = [...oldMessages, ...messages];
+
+  useEffect(() => {
+    if (!chatId || !members?.length || !user?._id || allMessages.length === 0) return;
+
+    const unreadIncomingIds = allMessages
+      .filter((msg) => msg?.sender?._id !== user._id)
+      .filter(
+        (msg) =>
+          !(msg.seenBy || []).some(
+            (entry) => (entry.user?._id || entry.user)?.toString() === user._id.toString()
+          )
+      )
+      .map((msg) => msg._id)
+      .filter(Boolean);
+
+    if (unreadIncomingIds.length === 0) return;
+
+    socket.emit(MESSAGE_READ, {
+      chatId,
+      members,
+      messageIds: unreadIncomingIds,
+    });
+
+    markMessagesRead({ chatId, messageIds: unreadIncomingIds });
+  }, [allMessages, chatId, members, socket, user?._id, markMessagesRead]);
+
   const isEmojiPickerOpen = Boolean(emojiAnchorEl);
   const activeEmojis = emojiGroups[activeEmojiTab]?.emojis || [];
   const filteredEmojis = useMemo(() => {
@@ -268,7 +379,13 @@ const Chat = ({ chatId, user }) => {
         }}
       >
         {allMessages.map((i) => (
-          <MessageComponent key={i._id} message={i} user={user} />
+          <MessageComponent
+            key={i._id}
+            message={i}
+            user={user}
+            onReply={(msg) => setReplyTo(msg)}
+            onReact={handleReact}
+          />
         ))}
 
         {userTyping && <TypingLoader />}
@@ -282,6 +399,36 @@ const Chat = ({ chatId, user }) => {
         }}
         onSubmit={submitHandler}
       >
+        {replyTo && (
+          <Box
+            sx={{
+              mx: "auto",
+              mb: 0.4,
+              width: "min(62vw, 680px)",
+              p: "0.45rem 0.65rem",
+              borderRadius: "0.65rem",
+              border: "1px solid rgba(6, 182, 212, 0.35)",
+              backgroundColor: "rgba(6, 182, 212, 0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+            }}
+          >
+            <Box>
+              <Typography variant="caption" sx={{ color: "#67e8f9", display: "block" }}>
+                Replying to {replyTo?.sender?.name || "message"}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "rgba(226, 232, 240, 0.9)" }}>
+                {(replyTo?.content || "Attachment").slice(0, 80)}
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={() => setReplyTo(null)}>
+              <CloseIcon sx={{ color: "#e2e8f0" }} />
+            </IconButton>
+          </Box>
+        )}
+
         <Stack
           direction={"row"}
           height={"100%"}

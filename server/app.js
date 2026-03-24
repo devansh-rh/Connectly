@@ -11,14 +11,19 @@ import { v2 as cloudinary } from "cloudinary";
 import {
   CHAT_JOINED,
   CHAT_LEAVED,
+  MESSAGE_READ,
   NEW_MESSAGE,
   NEW_MESSAGE_ALERT,
+  NEW_READ_RECEIPT,
   ONLINE_USERS,
   START_TYPING,
   STOP_TYPING,
+  USER_SET_STATUS,
+  USER_STATUS_UPDATED,
 } from "./constants/events.js";
 import { getSockets } from "./lib/helper.js";
 import { Message } from "./models/message.js";
+import { User } from "./models/user.js";
 import { corsOptions, isOriginAllowed } from "./constants/config.js";
 import { socketAuthenticator } from "./middlewares/auth.js";
 
@@ -36,6 +41,26 @@ const envMode = (process.env.NODE_ENV || "PRODUCTION").trim();
 const adminSecretKey = process.env.ADMIN_SECRET_KEY || "adsasdsdfsdfsdfd";
 const userSocketIDs = new Map();
 const onlineUsers = new Set();
+
+const extractFirstUrl = (text = "") => {
+  const match = text.match(/https?:\/\/[^\s]+/i);
+  return match ? match[0] : null;
+};
+
+const buildFallbackLinkPreview = (url) => {
+  try {
+    const parsed = new URL(url);
+    return {
+      url,
+      title: parsed.hostname,
+      description: `Open ${parsed.hostname}`,
+      image: "",
+      siteName: parsed.hostname,
+    };
+  } catch {
+    return null;
+  }
+};
 
 connectDB(mongoURI);
 
@@ -94,8 +119,28 @@ io.use((socket, next) => {
 io.on("connection", (socket) => {
   const user = socket.user;
   userSocketIDs.set(user._id.toString(), socket.id);
+  onlineUsers.add(user._id.toString());
 
-  socket.on(NEW_MESSAGE, async ({ chatId, members, message }) => {
+  User.findByIdAndUpdate(user._id, {
+    $set: {
+      "status.state": user.status?.state === "invisible" ? "invisible" : "online",
+      lastSeen: new Date(),
+    },
+  }).catch(() => {});
+
+  socket.broadcast.emit(USER_STATUS_UPDATED, {
+    userId: user._id,
+    status: user.status?.state === "invisible" ? "invisible" : "online",
+    statusText: user.status?.text || "",
+    lastSeen: new Date().toISOString(),
+  });
+
+  io.emit(ONLINE_USERS, Array.from(onlineUsers));
+
+  socket.on(NEW_MESSAGE, async ({ chatId, members, message, replyTo = null }) => {
+    const firstUrl = extractFirstUrl(message || "");
+    const linkPreview = firstUrl ? buildFallbackLinkPreview(firstUrl) : null;
+
     const messageForRealTime = {
       content: message,
       _id: uuid(),
@@ -104,6 +149,9 @@ io.on("connection", (socket) => {
         name: user.name,
       },
       chat: chatId,
+      replyTo,
+      linkPreview,
+      seenBy: [{ user: user._id, seenAt: new Date().toISOString() }],
       createdAt: new Date().toISOString(),
     };
 
@@ -111,6 +159,9 @@ io.on("connection", (socket) => {
       content: message,
       sender: user._id,
       chat: chatId,
+      replyTo: replyTo?._id || null,
+      linkPreview,
+      seenBy: [{ user: user._id, seenAt: new Date() }],
     };
 
     const membersSocket = getSockets(members);
@@ -137,6 +188,57 @@ io.on("connection", (socket) => {
     socket.to(membersSockets).emit(STOP_TYPING, { chatId });
   });
 
+  socket.on(MESSAGE_READ, async ({ chatId, members, messageIds = [] }) => {
+    const messages = await Message.find({
+      _id: { $in: messageIds },
+      chat: chatId,
+    });
+
+    const updatedMessageIds = [];
+
+    for (const message of messages) {
+      const alreadySeen = message.seenBy.some(
+        (entry) => entry.user.toString() === user._id.toString()
+      );
+
+      if (!alreadySeen) {
+        message.seenBy.push({ user: user._id, seenAt: new Date() });
+        await message.save();
+        updatedMessageIds.push(message._id.toString());
+      }
+    }
+
+    if (updatedMessageIds.length > 0) {
+      const membersSockets = getSockets(members);
+      io.to(membersSockets).emit(NEW_READ_RECEIPT, {
+        chatId,
+        messageIds: updatedMessageIds,
+        userId: user._id,
+        seenAt: new Date().toISOString(),
+      });
+    }
+  });
+
+  socket.on(USER_SET_STATUS, async ({ status, statusText = "" }) => {
+    const allowed = ["online", "away", "dnd", "invisible"];
+    const safeStatus = allowed.includes(status) ? status : "online";
+
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        "status.state": safeStatus,
+        "status.text": String(statusText).slice(0, 80),
+        lastSeen: new Date(),
+      },
+    });
+
+    io.emit(USER_STATUS_UPDATED, {
+      userId: user._id,
+      status: safeStatus,
+      statusText: String(statusText).slice(0, 80),
+      lastSeen: new Date().toISOString(),
+    });
+  });
+
   socket.on(CHAT_JOINED, ({ userId, members }) => {
     onlineUsers.add(userId.toString());
 
@@ -154,6 +256,20 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     userSocketIDs.delete(user._id.toString());
     onlineUsers.delete(user._id.toString());
+
+    User.findByIdAndUpdate(user._id, {
+      $set: {
+        lastSeen: new Date(),
+      },
+    }).catch(() => {});
+
+    socket.broadcast.emit(USER_STATUS_UPDATED, {
+      userId: user._id,
+      status: "away",
+      statusText: user.status?.text || "",
+      lastSeen: new Date().toISOString(),
+    });
+
     socket.broadcast.emit(ONLINE_USERS, Array.from(onlineUsers));
   });
 });

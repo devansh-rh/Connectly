@@ -7,6 +7,7 @@ import {
   NEW_REQUEST,
   ONLINE_USERS,
   REFETCH_CHATS,
+  USER_STATUS_UPDATED,
 } from "../../constants/events";
 import { darkBg, darkBg2 } from "../../constants/color";
 import { useErrors, useSocketEvents } from "../../hooks/hook";
@@ -80,11 +81,16 @@ const AppLayout = () => (WrappedComponent) => {
       setOnlineUsers(data);
     }, []);
 
+    const userStatusUpdatedListener = useCallback(() => {
+      refetch();
+    }, [refetch]);
+
     const eventHandlers = {
       [NEW_MESSAGE_ALERT]: newMessageAlertListener,
       [NEW_REQUEST]: newRequestListener,
       [REFETCH_CHATS]: refetchListener,
       [ONLINE_USERS]: onlineUsersListener,
+      [USER_STATUS_UPDATED]: userStatusUpdatedListener,
     };
 
     useSocketEvents(socket, eventHandlers);
