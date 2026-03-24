@@ -56,6 +56,31 @@ app.set("io", io);
 // Using Middlewares Here
 app.use(express.json());
 app.use(cookieParser());
+
+// Hardened CORS middleware for production
+app.use((req, res, next) => {
+  const clientUrl = (process.env.CLIENT_URL || "").trim().replace(/\/+$/, "");
+  const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:4173",
+    clientUrl,
+    "https://connectly-bice-theta.vercel.app",
+  ].filter(Boolean);
+
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(cors(corsOptions));
 
 app.use("/api/v1/user", userRoute);
