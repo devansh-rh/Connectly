@@ -1,10 +1,17 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Tooltip } from "@mui/material";
 import React, { memo } from "react";
-import { lightBlue } from "../../constants/color";
+import {
+  accentPrimary,
+  accentSecondary,
+  messageOther,
+  messageSelfText,
+  messageOtherText,
+} from "../../constants/color";
 import moment from "moment";
 import { fileFormat } from "../../lib/features";
 import RenderAttachment from "./RenderAttachment";
 import { motion } from "framer-motion";
+import DoneAllIcon from "@mui/icons-material/DoneAll";
 
 const MessageComponent = ({ message, user }) => {
   const { sender, content, attachments = [], createdAt } = message;
@@ -15,49 +22,116 @@ const MessageComponent = ({ message, user }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: "-100%" }}
-      whileInView={{ opacity: 1, x: 0 }}
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
       style={{
         alignSelf: sameSender ? "flex-end" : "flex-start",
-        backgroundColor: "white",
-        color: "black",
-        borderRadius: "5px",
-        padding: "0.5rem",
-        width: "fit-content",
+        marginBottom: "0.5rem",
+        maxWidth: "70%",
       }}
     >
       {!sameSender && (
-        <Typography color={lightBlue} fontWeight={"600"} variant="caption">
-          {sender.name}
+        <Typography
+          color={accentSecondary}
+          fontWeight="700"
+          variant="caption"
+          sx={{
+            display: "block",
+            marginBottom: "0.25rem",
+            marginLeft: "0.5rem",
+          }}
+        >
+          {sender?.name}
         </Typography>
       )}
 
-      {content && <Typography>{content}</Typography>}
+      <Box
+        sx={{
+          background: sameSender
+            ? `linear-gradient(135deg, ${accentPrimary} 0%, rgb(139, 92, 246) 100%)`
+            : messageOther,
+          color: sameSender ? messageSelfText : messageOtherText,
+          borderRadius: sameSender ? "1.25rem 1.25rem 0.5rem 1.25rem" : "1.25rem 1.25rem 1.25rem 0.5rem",
+          padding: "0.75rem 1rem",
+          wordWrap: "break-word",
+          boxShadow: sameSender
+            ? "0 4px 12px rgba(124, 58, 237, 0.3)"
+            : "0 2px 8px rgba(0, 0, 0, 0.2)",
+          transition: "all 0.3s ease",
+          "&:hover": {
+            boxShadow: sameSender
+              ? "0 6px 16px rgba(124, 58, 237, 0.5)"
+              : "0 4px 12px rgba(0, 0, 0, 0.3)",
+          },
+        }}
+      >
+        {content && (
+          <Typography
+            variant="body2"
+            sx={{
+              margin: 0,
+              lineHeight: "1.5",
+              wordBreak: "break-word",
+            }}
+          >
+            {content}
+          </Typography>
+        )}
 
-      {attachments.length > 0 &&
-        attachments.map((attachment, index) => {
-          const url = attachment.url;
-          const file = fileFormat(url);
+        {attachments.length > 0 &&
+          attachments.map((attachment, index) => {
+            const url = attachment.url;
+            const file = fileFormat(url);
 
-          return (
-            <Box key={index}>
-              <a
-                href={url}
-                target="_blank"
-                download
-                style={{
-                  color: "black",
+            return (
+              <Box
+                key={index}
+                sx={{
+                  marginTop: content ? "0.5rem" : 0,
                 }}
               >
-                {RenderAttachment(file, url)}
-              </a>
-            </Box>
-          );
-        })}
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  download
+                  style={{
+                    color: "inherit",
+                    textDecoration: "none",
+                  }}
+                >
+                  {RenderAttachment(file, url)}
+                </a>
+              </Box>
+            );
+          })}
 
-      <Typography variant="caption" color={"text.secondary"}>
-        {timeAgo}
-      </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: "0.25rem",
+            marginTop: content || attachments.length > 0 ? "0.5rem" : 0,
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{
+              opacity: 0.7,
+              fontSize: "0.75rem",
+            }}
+          >
+            {timeAgo}
+          </Typography>
+          {sameSender && (
+            <Tooltip title="Delivered">
+              <DoneAllIcon sx={{ fontSize: "0.9rem", opacity: 0.7 }} />
+            </Tooltip>
+          )}
+        </Box>
+      </Box>
     </motion.div>
   );
 };

@@ -8,6 +8,7 @@ import {
   ONLINE_USERS,
   REFETCH_CHATS,
 } from "../../constants/events";
+import { darkBg, darkBg2 } from "../../constants/color";
 import { useErrors, useSocketEvents } from "../../hooks/hook";
 import { getOrSaveFromStorage } from "../../lib/features";
 import { useMyChatsQuery } from "../../redux/api/api";
@@ -114,13 +115,15 @@ const AppLayout = () => (WrappedComponent) => {
           </Drawer>
         )}
 
-        <Grid container height={"calc(100vh - 4rem)"}>
+        <Grid container height={"calc(100vh - 4rem)"} sx={{ backgroundColor: darkBg }}>
           <Grid
             item
             sm={4}
             md={3}
             sx={{
               display: { xs: "none", sm: "block" },
+              backgroundColor: darkBg2,
+              borderRight: `1px solid rgba(124, 58, 237, 0.2)`,
             }}
             height={"100%"}
           >
@@ -148,7 +151,19 @@ const AppLayout = () => (WrappedComponent) => {
             sx={{
               display: { xs: "none", md: "block" },
               padding: "2rem",
-              bgcolor: "rgba(0,0,0,0.85)",
+              backgroundColor: darkBg2,
+              borderLeft: `1px solid rgba(124, 58, 237, 0.2)`,
+              overflowY: "auto",
+              "&::-webkit-scrollbar": {
+                width: "8px",
+              },
+              "&::-webkit-scrollbar-track": {
+                backgroundColor: "transparent",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "rgba(124, 58, 237, 0.3)",
+                borderRadius: "4px",
+              },
             }}
           >
             <Profile user={user} />

@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import AppLayout from "../components/layout/AppLayout";
 import { IconButton, Skeleton, Stack } from "@mui/material";
-import { grayColor, orange } from "../constants/color";
+import { darkBg, accentPrimary, accentSecondary } from "../constants/color";
 import {
   AttachFile as AttachFileIcon,
   Send as SendIcon,
@@ -188,11 +188,21 @@ const Chat = ({ chatId, user }) => {
         boxSizing={"border-box"}
         padding={"1rem"}
         spacing={"1rem"}
-        bgcolor={grayColor}
+        bgcolor={darkBg}
         height={"90%"}
         sx={{
           overflowX: "hidden",
           overflowY: "auto",
+          "&::-webkit-scrollbar": {
+            width: "8px",
+          },
+          "&::-webkit-scrollbar-track": {
+            backgroundColor: "transparent",
+          },
+          "&::-webkit-scrollbar-thumb": {
+            backgroundColor: "rgba(124, 58, 237, 0.3)",
+            borderRadius: "4px",
+          },
         }}
       >
         {allMessages.map((i) => (
@@ -238,12 +248,14 @@ const Chat = ({ chatId, user }) => {
             type="submit"
             sx={{
               rotate: "-30deg",
-              bgcolor: orange,
+              background: `linear-gradient(135deg, ${accentPrimary} 0%, ${accentSecondary} 100%)`,
               color: "white",
               marginLeft: "1rem",
               padding: "0.5rem",
+              transition: "all 0.3s ease",
               "&:hover": {
-                bgcolor: "error.dark",
+                boxShadow: `0 4px 12px rgba(124, 58, 237, 0.4)`,
+                transform: "scale(1.05)",
               },
             }}
           >

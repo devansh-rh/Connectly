@@ -9,7 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 import React, { Suspense, lazy, useState } from "react";
-import { orange } from "../../constants/color";
+import { accentGradient, accentPrimary } from "../../constants/color";
 import {
   Add as AddIcon,
   Menu as MenuIcon,
@@ -78,7 +78,8 @@ const Header = () => {
         <AppBar
           position="static"
           sx={{
-            bgcolor: orange,
+            background: accentGradient,
+            boxShadow: "0 4px 20px rgba(124, 58, 237, 0.3)",
           }}
         >
           <Toolbar>
