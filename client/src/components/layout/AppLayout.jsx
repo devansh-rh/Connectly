@@ -25,7 +25,6 @@ import { getSocket } from "../../socket";
 import DeleteChatMenu from "../dialogs/DeleteChatMenu";
 import Title from "../shared/Title";
 import ChatList from "../specific/ChatList";
-import Profile from "../specific/Profile";
 import Header from "./Header";
 
 const AppLayout = () => (WrappedComponent) => {
@@ -139,34 +138,8 @@ const AppLayout = () => (WrappedComponent) => {
               />
             )}
           </Grid>
-          <Grid item xs={12} sm={8} md={5} lg={6} height={"100%"}>
+          <Grid item xs={12} sm={8} md={9} lg={9} height={"100%"}>
             <WrappedComponent {...props} chatId={chatId} user={user} />
-          </Grid>
-
-          <Grid
-            item
-            md={4}
-            lg={3}
-            height={"100%"}
-            sx={{
-              display: { xs: "none", md: "block" },
-              padding: "2rem",
-              backgroundColor: darkBg2,
-              borderLeft: `1px solid rgba(124, 58, 237, 0.2)`,
-              overflowY: "auto",
-              "&::-webkit-scrollbar": {
-                width: "8px",
-              },
-              "&::-webkit-scrollbar-track": {
-                backgroundColor: "transparent",
-              },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: "rgba(124, 58, 237, 0.3)",
-                borderRadius: "4px",
-              },
-            }}
-          >
-            <Profile user={user} />
           </Grid>
         </Grid>
       </>

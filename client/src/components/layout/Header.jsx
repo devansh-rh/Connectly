@@ -1,9 +1,11 @@
 import {
+  Avatar,
   AppBar,
   Backdrop,
   Badge,
   Box,
   IconButton,
+  Menu,
   Toolbar,
   Tooltip,
   Typography,
@@ -31,6 +33,8 @@ import {
   setIsSearch,
 } from "../../redux/reducers/misc";
 import { resetNotificationCount } from "../../redux/reducers/chat";
+import Profile from "../specific/Profile";
+import { transformImage } from "../../lib/features";
 
 const SearchDialog = lazy(() => import("../specific/Search"));
 const NotifcationDialog = lazy(() => import("../specific/Notifications"));
@@ -39,11 +43,15 @@ const NewGroupDialog = lazy(() => import("../specific/NewGroup"));
 const Header = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const [profileAnchorEl, setProfileAnchorEl] = useState(null);
 
   const { isSearch, isNotification, isNewGroup } = useSelector(
     (state) => state.misc
   );
   const { notificationCount } = useSelector((state) => state.chat);
+  const { user } = useSelector((state) => state.auth);
+
+  const isProfileMenuOpen = Boolean(profileAnchorEl);
 
   const handleMobile = () => dispatch(setIsMobile(true));
 
@@ -59,6 +67,10 @@ const Header = () => {
   };
 
   const navigateToGroup = () => navigate("/groups");
+
+  const openProfile = (event) => setProfileAnchorEl(event.currentTarget);
+
+  const closeProfile = () => setProfileAnchorEl(null);
 
   const logoutHandler = async () => {
     try {
@@ -139,6 +151,20 @@ const Header = () => {
                 value={notificationCount}
               />
 
+              <Tooltip title={"Profile"}>
+                <IconButton color="inherit" size="large" onClick={openProfile}>
+                  <Avatar
+                    src={transformImage(user?.avatar?.url)}
+                    alt={user?.name || "Profile"}
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      border: "2px solid rgba(255,255,255,0.8)",
+                    }}
+                  />
+                </IconButton>
+              </Tooltip>
+
               <IconBtn
                 title={"Logout"}
                 icon={<LogoutIcon />}
@@ -166,6 +192,36 @@ const Header = () => {
           <NewGroupDialog />
         </Suspense>
       )}
+
+      <Menu
+        anchorEl={profileAnchorEl}
+        open={isProfileMenuOpen}
+        onClose={closeProfile}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{
+          sx: {
+            mt: 1,
+            minWidth: 320,
+            maxWidth: 360,
+            maxHeight: "75vh",
+            p: 2,
+            backgroundColor: "#1a1a2e",
+            border: "1px solid rgba(124, 58, 237, 0.25)",
+            borderRadius: "1rem",
+            overflowY: "auto",
+            "&::-webkit-scrollbar": {
+              width: "6px",
+            },
+            "&::-webkit-scrollbar-thumb": {
+              backgroundColor: "rgba(124, 58, 237, 0.35)",
+              borderRadius: "4px",
+            },
+          },
+        }}
+      >
+        <Profile user={user} isPopup />
+      </Menu>
     </>
   );
 };

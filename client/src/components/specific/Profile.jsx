@@ -8,47 +8,51 @@ import {
 import moment from "moment";
 import { transformImage } from "../../lib/features";
 
-const Profile = ({ user }) => {
+const Profile = ({ user, isPopup = false }) => {
+  const avatarSize = isPopup ? 96 : 200;
+
   return (
-    <Stack spacing={"2rem"} direction={"column"} alignItems={"center"}>
+    <Stack spacing={isPopup ? "1rem" : "2rem"} direction={"column"} alignItems={"center"}>
       <Avatar
         src={transformImage(user?.avatar?.url)}
         sx={{
-          width: 200,
-          height: 200,
+          width: avatarSize,
+          height: avatarSize,
           objectFit: "contain",
-          marginBottom: "1rem",
+          marginBottom: isPopup ? "0.5rem" : "1rem",
           border: "5px solid white",
         }}
       />
-      <ProfileCard heading={"Bio"} text={user?.bio} />
+      <ProfileCard heading={"Bio"} text={user?.bio} isPopup={isPopup} />
       <ProfileCard
         heading={"Username"}
         text={user?.username}
         Icon={<UserNameIcon />}
+        isPopup={isPopup}
       />
-      <ProfileCard heading={"Name"} text={user?.name} Icon={<FaceIcon />} />
+      <ProfileCard heading={"Name"} text={user?.name} Icon={<FaceIcon />} isPopup={isPopup} />
       <ProfileCard
         heading={"Joined"}
         text={moment(user?.createdAt).fromNow()}
         Icon={<CalendarIcon />}
+        isPopup={isPopup}
       />
     </Stack>
   );
 };
 
-const ProfileCard = ({ text, Icon, heading }) => (
+const ProfileCard = ({ text, Icon, heading, isPopup = false }) => (
   <Stack
     direction={"row"}
     alignItems={"center"}
-    spacing={"1rem"}
+    spacing={isPopup ? "0.75rem" : "1rem"}
     color={"white"}
     textAlign={"center"}
   >
     {Icon && Icon}
 
     <Stack>
-      <Typography variant="body1">{text}</Typography>
+      <Typography variant={isPopup ? "body2" : "body1"}>{text}</Typography>
       <Typography color={"gray"} variant="caption">
         {heading}
       </Typography>
