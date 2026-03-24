@@ -10,6 +10,7 @@ import {
   emitEvent,
   sendToken,
   uploadFilesToCloudinary,
+  deletFilesFromCloudinary,
 } from "../utils/features.js";
 import { ErrorHandler } from "../utils/utility.js";
 
@@ -229,6 +230,40 @@ const getMyFriends = TryCatch(async (req, res) => {
   }
 });
 
+const updateProfileImage = TryCatch(async (req, res, next) => {
+  const file = req.file;
+  const userId = req.user;
+
+  if (!file) return next(new ErrorHandler("Please Upload Avatar"));
+
+  const user = await User.findById(userId);
+
+  if (!user) return next(new ErrorHandler("User not found", 404));
+
+  // Delete old avatar from cloudinary if it exists
+  if (user.avatar?.public_id) {
+    await deletFilesFromCloudinary([user.avatar.public_id]);
+  }
+
+  // Upload new avatar to cloudinary
+  const result = await uploadFilesToCloudinary([file]);
+
+  const newAvatar = {
+    public_id: result[0].public_id,
+    url: result[0].url,
+  };
+
+  // Update user with new avatar
+  user.avatar = newAvatar;
+  await user.save();
+
+  return res.status(200).json({
+    success: true,
+    user,
+    message: "Profile image updated successfully",
+  });
+});
+
 export {
   acceptFriendRequest,
   getMyFriends,
@@ -239,4 +274,5 @@ export {
   newUser,
   searchUser,
   sendFriendRequest,
+  updateProfileImage,
 };

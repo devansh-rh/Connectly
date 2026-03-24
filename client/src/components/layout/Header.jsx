@@ -29,7 +29,7 @@ import axios from "axios";
 import { server } from "../../constants/config";
 import toast from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
-import { userNotExists } from "../../redux/reducers/auth";
+import { userNotExists, userExists } from "../../redux/reducers/auth";
 import {
   setIsMobile,
   setIsNewGroup,
@@ -49,12 +49,18 @@ const Header = () => {
   const dispatch = useDispatch();
   const [profileAnchorEl, setProfileAnchorEl] = useState(null);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const { isSearch, isNotification, isNewGroup } = useSelector(
     (state) => state.misc
   );
   const { notificationCount } = useSelector((state) => state.chat);
   const { user } = useSelector((state) => state.auth);
+
+  // Update local user when Redux user changes
+  React.useEffect(() => {
+    setCurrentUser(user);
+  }, [user]);
 
   const isProfileMenuOpen = Boolean(profileAnchorEl);
 
@@ -80,6 +86,11 @@ const Header = () => {
   const openAboutDialog = () => setIsAboutOpen(true);
 
   const closeAboutDialog = () => setIsAboutOpen(false);
+
+  const handleProfileUpdate = (updatedUser) => {
+    setCurrentUser(updatedUser);
+    dispatch(userExists(updatedUser));
+  };
 
   const logoutHandler = async () => {
     try {
@@ -171,8 +182,8 @@ const Header = () => {
               <Tooltip title={"Profile"}>
                 <IconButton color="inherit" size="large" onClick={openProfile}>
                   <Avatar
-                    src={transformImage(user?.avatar?.url)}
-                    alt={user?.name || "Profile"}
+                    src={transformImage((currentUser || user)?.avatar?.url)}
+                    alt={(currentUser || user)?.name || "Profile"}
                     sx={{
                       width: 32,
                       height: 32,
@@ -237,7 +248,7 @@ const Header = () => {
           },
         }}
       >
-        <Profile user={user} isPopup />
+        <Profile user={currentUser || user} isPopup onProfileUpdate={handleProfileUpdate} />
       </Menu>
 
       <Dialog

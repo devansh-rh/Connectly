@@ -97,8 +97,28 @@ const uploadFilesToCloudinary = async (files = []) => {
   }
 };
 
-const deletFilesFromCloudinary = async (public_ids) => {
-  // Delete files from cloudinary
+const deletFilesFromCloudinary = async (public_ids = []) => {
+  if (!isCloudinaryConfigured()) {
+    return;
+  }
+
+  const deletePromises = public_ids.map((public_id) => {
+    return new Promise((resolve, reject) => {
+      cloudinary.uploader.destroy(public_id, (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      });
+    });
+  });
+
+  try {
+    await Promise.all(deletePromises);
+  } catch (err) {
+    if ((process.env.NODE_ENV || "").trim() === "DEVELOPMENT") {
+      return;
+    }
+    throw new Error("Error deleting files from cloudinary");
+  }
 };
 
 export {

@@ -9,6 +9,7 @@ import {
   newUser,
   searchUser,
   sendFriendRequest,
+  updateProfileImage,
 } from "../controllers/user.js";
 import {
   acceptRequestValidator,
@@ -30,6 +31,8 @@ app.post("/login", loginValidator(), validateHandler, login);
 app.use(isAuthenticated);
 
 app.get("/me", getMyProfile);
+
+app.put("/profile/avatar", singleAvatar, updateProfileImage);
 
 app.get("/logout", logout);
 

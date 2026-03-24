@@ -1,28 +1,149 @@
-import React from "react";
-import { Avatar, Stack, Typography } from "@mui/material";
+import React, { useState, useRef } from "react";
+import { Avatar, Stack, Typography, IconButton, Box, CircularProgress } from "@mui/material";
 import {
   Face as FaceIcon,
   AlternateEmail as UserNameIcon,
   CalendarMonth as CalendarIcon,
+  PhotoCamera as PhotoCameraIcon,
 } from "@mui/icons-material";
 import moment from "moment";
+import axios from "axios";
+import toast from "react-hot-toast";
 import { transformImage } from "../../lib/features";
+import { server } from "../../constants/config";
 
-const Profile = ({ user, isPopup = false }) => {
+const Profile = ({ user, isPopup = false, onProfileUpdate }) => {
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef(null);
   const avatarSize = isPopup ? 96 : 200;
 
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size must be less than 5MB");
+      return;
+    }
+
+    try {
+      setIsUploadingAvatar(true);
+      const formData = new FormData();
+      formData.append("avatar", file);
+
+      const config = {
+        withCredentials: true,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      };
+
+      const { data } = await axios.put(
+        `${server}/api/v1/user/profile/avatar`,
+        formData,
+        config
+      );
+
+      toast.success("Profile image updated successfully!");
+
+      // Update avatar display
+      if (onProfileUpdate) {
+        onProfileUpdate(data.user);
+      }
+
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to update profile image");
+      console.error("Avatar upload error:", error);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   return (
-    <Stack spacing={isPopup ? "1rem" : "2rem"} direction={"column"} alignItems={"center"}>
-      <Avatar
-        src={transformImage(user?.avatar?.url)}
-        sx={{
-          width: avatarSize,
-          height: avatarSize,
-          objectFit: "contain",
-          marginBottom: isPopup ? "0.5rem" : "1rem",
-          border: "5px solid white",
-        }}
-      />
+    <Stack
+      spacing={isPopup ? "1rem" : "2rem"}
+      direction={"column"}
+      alignItems={"center"}
+      sx={{
+        p: isPopup ? "1.5rem 1rem" : "2rem",
+        borderRadius: "1rem",
+      }}
+    >
+      <Box sx={{ position: "relative", display: "inline-block" }}>
+        <Avatar
+          src={transformImage(user?.avatar?.url)}
+          sx={{
+            width: avatarSize,
+            height: avatarSize,
+            objectFit: "contain",
+            border: "5px solid rgba(124, 58, 237, 0.3)",
+            boxShadow: "0 8px 32px rgba(124, 58, 237, 0.2)",
+            transition: "all 0.3s ease",
+            cursor: isPopup ? "pointer" : "default",
+            "&:hover": isPopup
+              ? {
+                  boxShadow: "0 12px 40px rgba(124, 58, 237, 0.4)",
+                  transform: "scale(1.05)",
+                }
+              : {},
+          }}
+          onClick={isPopup ? handleAvatarClick : undefined}
+        />
+
+        {isPopup && (
+          <IconButton
+            onClick={handleAvatarClick}
+            disabled={isUploadingAvatar}
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              backgroundColor: "rgba(124, 58, 237, 0.8)",
+              color: "white",
+              border: "3px solid" + (isPopup ? "rgba(255, 255, 255, 0.2)" : "transparent"),
+              width: avatarSize * 0.35,
+              height: avatarSize * 0.35,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              "&:hover": {
+                backgroundColor: "rgba(124, 58, 237, 1)",
+              },
+            }}
+          >
+            {isUploadingAvatar ? (
+              <CircularProgress size={avatarSize * 0.2} sx={{ color: "white" }} />
+            ) : (
+              <PhotoCameraIcon sx={{ fontSize: avatarSize * 0.2 }} />
+            )}
+          </IconButton>
+        )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleAvatarChange}
+          style={{ display: "none" }}
+        />
+      </Box>
+
       <ProfileCard heading={"Bio"} text={user?.bio} isPopup={isPopup} />
       <ProfileCard
         heading={"Username"}
@@ -48,12 +169,26 @@ const ProfileCard = ({ text, Icon, heading, isPopup = false }) => (
     spacing={isPopup ? "0.75rem" : "1rem"}
     color={"white"}
     textAlign={"center"}
+    sx={{
+      p: isPopup ? "0.5rem 0" : "0.75rem 0",
+      transition: "all 0.3s ease",
+      "&:hover": {
+        transform: isPopup ? "translateX(4px)" : "none",
+      },
+    }}
   >
-    {Icon && Icon}
+    {Icon && <Box sx={{ color: "rgba(124, 58, 237, 0.8)" }}>{Icon}</Box>}
 
     <Stack>
-      <Typography variant={isPopup ? "body2" : "body1"}>{text}</Typography>
-      <Typography color={"gray"} variant="caption">
+      <Typography
+        variant={isPopup ? "body2" : "body1"}
+        sx={{
+          fontWeight: isPopup ? 500 : 600,
+          letterSpacing: "0.3px",
+        }}
+      >
+        {text}</Typography>
+      <Typography color={"rgba(255, 255, 255, 0.6)"} variant="caption">
         {heading}
       </Typography>
     </Stack>
