@@ -22,17 +22,16 @@ const renderContentWithLargerEmojis = (text) => {
   return parts.map((part, index) => {
     if (emojiTestRegex.test(part)) {
       return (
-        <Box
+        <span
           key={`emoji-${index}`}
-          component="span"
-          sx={{
-            fontSize: "1.2em",
+          style={{
+            fontSize: "2.4em",
             lineHeight: 1,
-            verticalAlign: "-0.06em",
+            verticalAlign: "-0.12em",
           }}
         >
           {part}
-        </Box>
+        </span>
       );
     }
 
