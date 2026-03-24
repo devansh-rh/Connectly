@@ -6,10 +6,11 @@ import React, {
   useState,
 } from "react";
 import AppLayout from "../components/layout/AppLayout";
-import { IconButton, Skeleton, Stack } from "@mui/material";
+import { Box, IconButton, Popover, Skeleton, Stack, Tab, Tabs, Typography } from "@mui/material";
 import { darkBg, accentPrimary, accentSecondary } from "../constants/color";
 import {
   AttachFile as AttachFileIcon,
+  EmojiEmotions as EmojiIcon,
   Send as SendIcon,
 } from "@mui/icons-material";
 import { InputBox } from "../components/styles/StyledComponents";
@@ -45,6 +46,8 @@ const Chat = ({ chatId, user }) => {
   const [messages, setMessages] = useState([]);
   const [page, setPage] = useState(1);
   const [fileMenuAnchor, setFileMenuAnchor] = useState(null);
+  const [emojiAnchorEl, setEmojiAnchorEl] = useState(null);
+  const [activeEmojiTab, setActiveEmojiTab] = useState(0);
 
   const [IamTyping, setIamTyping] = useState(false);
   const [userTyping, setUserTyping] = useState(false);
@@ -68,6 +71,25 @@ const Chat = ({ chatId, user }) => {
   ];
 
   const members = chatDetails?.data?.chat?.members;
+
+  const emojiGroups = [
+    {
+      label: "Smileys",
+      emojis: ["😀", "😄", "😁", "😆", "😊", "😍", "🥰", "😘", "🤩", "😎", "🥳", "🤗", "🤭", "😇", "🤓", "😌", "😋", "😜", "🤪", "😏", "🙃", "😺", "😸", "😹"],
+    },
+    {
+      label: "Love",
+      emojis: ["❤️", "💜", "💙", "🖤", "💛", "💚", "🤍", "🤎", "💖", "💘", "💝", "💕", "💞", "💓", "💗", "💟", "😍", "🥰", "😘", "🤝", "🌹", "💐", "✨", "🫶"],
+    },
+    {
+      label: "Fun",
+      emojis: ["🔥", "⚡", "🌈", "🌟", "💯", "🎉", "🎊", "🎈", "🎵", "🎶", "🎮", "🕺", "💃", "🤘", "👌", "🙌", "👏", "💪", "🚀", "🎯", "🧠", "🍕", "🍔", "☕"],
+    },
+    {
+      label: "Reacts",
+      emojis: ["👍", "👎", "👏", "🙌", "🙏", "🤝", "👌", "✌️", "🤟", "🫡", "✅", "❌", "❗", "❓", "💥", "😮", "😢", "😭", "😡", "🤯", "🤔", "😂", "😅", "😉"],
+    },
+  ];
 
   const messageOnChange = (e) => {
     setMessage(e.target.value);
@@ -98,6 +120,14 @@ const Chat = ({ chatId, user }) => {
     // Emitting the message to the server
     socket.emit(NEW_MESSAGE, { chatId, members, message });
     setMessage("");
+  };
+
+  const openEmojiPicker = (event) => setEmojiAnchorEl(event.currentTarget);
+
+  const closeEmojiPicker = () => setEmojiAnchorEl(null);
+
+  const addEmojiToMessage = (emoji) => {
+    setMessage((prev) => `${prev}${emoji}`);
   };
 
   useEffect(() => {
@@ -178,6 +208,7 @@ const Chat = ({ chatId, user }) => {
   useErrors(errors);
 
   const allMessages = [...oldMessages, ...messages];
+  const isEmojiPickerOpen = Boolean(emojiAnchorEl);
 
   return chatDetails.isLoading ? (
     <Skeleton />
@@ -245,24 +276,126 @@ const Chat = ({ chatId, user }) => {
           />
 
           <IconButton
-            type="submit"
+            onClick={openEmojiPicker}
             sx={{
-              rotate: "-30deg",
-              background: `linear-gradient(135deg, ${accentPrimary} 0%, ${accentSecondary} 100%)`,
-              color: "white",
-              marginLeft: "1rem",
-              padding: "0.5rem",
-              transition: "all 0.3s ease",
+              marginLeft: "0.75rem",
+              width: "2.5rem",
+              height: "2.5rem",
+              color: "#facc15",
+              backgroundColor: "rgba(26, 26, 46, 0.9)",
+              border: "1px solid rgba(124, 58, 237, 0.35)",
+              transition: "all 0.25s ease",
               "&:hover": {
-                boxShadow: `0 4px 12px rgba(124, 58, 237, 0.4)`,
-                transform: "scale(1.05)",
+                backgroundColor: "rgba(124, 58, 237, 0.2)",
+                transform: "translateY(-1px)",
               },
             }}
+          >
+            <EmojiIcon />
+          </IconButton>
+
+          <IconButton
+            type="submit"
+            sx={{
+              width: "2.75rem",
+              height: "2.75rem",
+              borderRadius: "0.9rem",
+              background: `linear-gradient(135deg, ${accentPrimary} 0%, ${accentSecondary} 100%)`,
+              color: "white",
+              marginLeft: "0.65rem",
+              boxShadow: "0 8px 20px rgba(124, 58, 237, 0.35)",
+              transition: "all 0.3s ease",
+              "&:hover": {
+                boxShadow: `0 10px 24px rgba(124, 58, 237, 0.5)`,
+                transform: "translateY(-2px) scale(1.03)",
+              },
+              "&:disabled": {
+                opacity: 0.45,
+              },
+            }}
+            disabled={!message.trim()}
           >
             <SendIcon />
           </IconButton>
         </Stack>
       </form>
+
+      <Popover
+        open={isEmojiPickerOpen}
+        anchorEl={emojiAnchorEl}
+        onClose={closeEmojiPicker}
+        anchorOrigin={{ vertical: "top", horizontal: "left" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "right" }}
+        PaperProps={{
+          sx: {
+            width: 320,
+            maxWidth: "90vw",
+            borderRadius: "1rem",
+            overflow: "hidden",
+            backgroundColor: "#121327",
+            border: "1px solid rgba(124, 58, 237, 0.3)",
+          },
+        }}
+      >
+        <Tabs
+          value={activeEmojiTab}
+          onChange={(e, value) => setActiveEmojiTab(value)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            minHeight: "2.5rem",
+            "& .MuiTab-root": {
+              color: "rgba(226, 232, 240, 0.8)",
+              minHeight: "2.5rem",
+              fontSize: "0.75rem",
+              textTransform: "none",
+            },
+          }}
+        >
+          {emojiGroups.map((group) => (
+            <Tab key={group.label} label={group.label} />
+          ))}
+        </Tabs>
+
+        <Box sx={{ px: 1.2, pb: 1.2 }}>
+          <Typography variant="caption" sx={{ color: "rgba(226, 232, 240, 0.75)", display: "block", mb: 0.8 }}>
+            Pick an emoji
+          </Typography>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(8, 1fr)",
+              gap: "0.25rem",
+              maxHeight: 220,
+              overflowY: "auto",
+              pr: 0.5,
+              "&::-webkit-scrollbar": { width: "6px" },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "rgba(124, 58, 237, 0.35)",
+                borderRadius: "4px",
+              },
+            }}
+          >
+            {emojiGroups[activeEmojiTab].emojis.map((emoji) => (
+              <IconButton
+                key={`${emoji}-${activeEmojiTab}`}
+                onClick={() => addEmojiToMessage(emoji)}
+                sx={{
+                  borderRadius: "0.55rem",
+                  fontSize: "1.15rem",
+                  backgroundColor: "rgba(255,255,255,0.03)",
+                  "&:hover": {
+                    backgroundColor: "rgba(124, 58, 237, 0.2)",
+                    transform: "translateY(-1px)",
+                  },
+                }}
+              >
+                {emoji}
+              </IconButton>
+            ))}
+          </Box>
+        </Box>
+      </Popover>
 
       <FileMenu anchorE1={fileMenuAnchor} chatId={chatId} />
     </Fragment>
