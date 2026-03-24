@@ -65,9 +65,15 @@ import {
   
     return (
       <Stack width={w} direction={"column"} p={"3rem"} spacing={"3rem"}>
-        <Typography variant="h5" textTransform={"uppercase"}>
-          Connectly
-        </Typography>
+        <Stack direction={"row"} alignItems={"center"} spacing={"0.75rem"}>
+          <Box
+            component="img"
+            src="/connectly-logo.svg"
+            alt="Connectly Logo"
+            sx={{ width: 32, height: 32 }}
+          />
+          <Typography variant="h5">Connectly</Typography>
+        </Stack>
   
         <Stack spacing={"1rem"}>
           {adminTabs.map((tab) => (

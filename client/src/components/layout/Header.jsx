@@ -83,14 +83,21 @@ const Header = () => {
           }}
         >
           <Toolbar>
-            <Typography
-              variant="h6"
+            <Box
               sx={{
-                display: { xs: "none", sm: "block" },
+                display: { xs: "none", sm: "flex" },
+                alignItems: "center",
+                gap: "0.5rem",
               }}
             >
-              Connectly
-            </Typography>
+              <Box
+                component="img"
+                src="/connectly-logo.svg"
+                alt="Connectly Logo"
+                sx={{ width: 30, height: 30 }}
+              />
+              <Typography variant="h6">Connectly</Typography>
+            </Box>
 
             <Box
               sx={{

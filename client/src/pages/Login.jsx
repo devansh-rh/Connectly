@@ -188,19 +188,31 @@ const Login = () => {
             },
           }}
         >
-          <Typography
-            variant="h5"
-            sx={{
-              background: accentGradient,
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-              fontWeight: 700,
-              marginBottom: "0.75rem",
-            }}
+          <Stack
+            direction={"row"}
+            alignItems={"center"}
+            spacing={"0.5rem"}
+            sx={{ marginBottom: "0.75rem" }}
           >
-            Connectly
-          </Typography>
+            <Box
+              component="img"
+              src="/connectly-logo.svg"
+              alt="Connectly Logo"
+              sx={{ width: 30, height: 30 }}
+            />
+            <Typography
+              variant="h5"
+              sx={{
+                background: accentGradient,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                fontWeight: 700,
+              }}
+            >
+              Connectly
+            </Typography>
+          </Stack>
 
           {isLogin ? (
             <>
