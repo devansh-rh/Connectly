@@ -276,7 +276,7 @@ const Chat = ({ chatId, user }) => {
   useEffect(() => {
     if (bottomRef.current)
       bottomRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages.length]);
 
   useEffect(() => {
     if (chatDetails.isError) return navigate("/");
