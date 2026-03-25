@@ -23,20 +23,28 @@ import { transformImage } from "../../lib/features";
 import { server } from "../../constants/config";
 import { getSocket } from "../../socket";
 import { USER_SET_STATUS } from "../../constants/events";
+import { usernameValidator } from "../../utils/validators";
 
 const Profile = ({ user, isPopup = false, onProfileUpdate }) => {
   const socket = getSocket();
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [statusState, setStatusState] = useState(user?.status?.state || "online");
   const [statusText, setStatusText] = useState(user?.status?.text || "");
+  const [username, setUsername] = useState(user?.username || "");
+  const [bio, setBio] = useState(user?.bio || "");
   const fileInputRef = useRef(null);
   const avatarSize = isPopup ? 96 : 200;
 
   useEffect(() => {
     setStatusState(user?.status?.state || "online");
     setStatusText(user?.status?.text || "");
-  }, [user?.status?.state, user?.status?.text]);
+    setUsername(user?.username || "");
+    setBio(user?.bio || "");
+  }, [user?.status?.state, user?.status?.text, user?.username, user?.bio]);
+
+  const usernameValidation = usernameValidator(username);
 
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
@@ -117,6 +125,34 @@ const Profile = ({ user, isPopup = false, onProfileUpdate }) => {
       toast.error(error?.response?.data?.message || "Failed to update status");
     } finally {
       setIsSavingStatus(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (usernameValidation?.isValid === false) {
+      toast.error(usernameValidation.errorMessage);
+      return;
+    }
+
+    try {
+      setIsSavingProfile(true);
+
+      const { data } = await axios.put(
+        `${server}/api/v1/user/profile`,
+        {
+          username: username.trim().toLowerCase(),
+          bio: bio.trim(),
+        },
+        { withCredentials: true }
+      );
+
+      if (onProfileUpdate) onProfileUpdate(data.user);
+
+      toast.success("Profile updated");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to update profile");
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -207,6 +243,51 @@ const Profile = ({ user, isPopup = false, onProfileUpdate }) => {
 
       {isPopup && (
         <Stack spacing={1} width={"100%"} sx={{ mt: 1 }}>
+          <TextField
+            label="Username"
+            value={username}
+            size="small"
+            onChange={(e) => setUsername(e.target.value)}
+            error={usernameValidation?.isValid === false}
+            helperText={usernameValidation?.isValid === false ? usernameValidation.errorMessage : " "}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                color: "white",
+                "& fieldset": { borderColor: "rgba(124, 58, 237, 0.35)" },
+              },
+              "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.75)" },
+            }}
+          />
+
+          <TextField
+            value={bio}
+            onChange={(e) => setBio(e.target.value.slice(0, 160))}
+            label="Bio"
+            size="small"
+            multiline
+            minRows={2}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                color: "white",
+                "& fieldset": { borderColor: "rgba(124, 58, 237, 0.35)" },
+              },
+              "& .MuiInputLabel-root": { color: "rgba(255,255,255,0.75)" },
+            }}
+          />
+
+          <Button
+            variant="contained"
+            onClick={handleSaveProfile}
+            disabled={isSavingProfile || usernameValidation?.isValid === false}
+            sx={{
+              background: "linear-gradient(135deg, #06b6d4 0%, #7c3aed 100%)",
+              textTransform: "none",
+              fontWeight: 700,
+            }}
+          >
+            {isSavingProfile ? "Saving profile..." : "Update profile"}
+          </Button>
+
           <TextField
             select
             label="Presence"

@@ -17,6 +17,9 @@ import { ErrorHandler } from "../utils/utility.js";
 // Create a new user and save it to the database and save token in cookie
 const newUser = TryCatch(async (req, res, next) => {
   const { name, username, password, bio } = req.body;
+  const normalizedUsername = String(username || "")
+    .trim()
+    .toLowerCase();
 
   const file = req.file;
 
@@ -32,7 +35,7 @@ const newUser = TryCatch(async (req, res, next) => {
   const user = await User.create({
     name,
     bio,
-    username,
+    username: normalizedUsername,
     password,
     avatar,
   });
@@ -43,8 +46,11 @@ const newUser = TryCatch(async (req, res, next) => {
 // Login user and save token in cookie
 const login = TryCatch(async (req, res, next) => {
   const { username, password } = req.body;
+  const normalizedUsername = String(username || "")
+    .trim()
+    .toLowerCase();
 
-  const user = await User.findOne({ username }).select("+password");
+  const user = await User.findOne({ username: normalizedUsername }).select("+password");
 
   if (!user) return next(new ErrorHandler("Invalid Username or Password", 404));
 
@@ -93,9 +99,10 @@ const searchUser = TryCatch(async (req, res) => {
   });
 
   // Modifying the response
-  const users = allUsersExceptMeAndFriends.map(({ _id, name, avatar, status, lastSeen }) => ({
+  const users = allUsersExceptMeAndFriends.map(({ _id, name, avatar, username, status, lastSeen }) => ({
     _id,
     name,
+    username,
     avatar: avatar.url,
     status,
     lastSeen,
@@ -201,7 +208,7 @@ const getMyFriends = TryCatch(async (req, res) => {
   const chats = await Chat.find({
     members: req.user,
     groupChat: false,
-  }).populate("members", "name avatar status lastSeen");
+  }).populate("members", "name username avatar status lastSeen");
 
   const friends = chats.map(({ members }) => {
     const otherUser = getOtherMember(members, req.user);
@@ -209,6 +216,7 @@ const getMyFriends = TryCatch(async (req, res) => {
     return {
       _id: otherUser._id,
       name: otherUser.name,
+      username: otherUser.username,
       avatar: otherUser.avatar.url,
       status: otherUser.status,
       lastSeen: otherUser.lastSeen,
@@ -301,6 +309,37 @@ const updateMyStatus = TryCatch(async (req, res, next) => {
   });
 });
 
+const updateProfile = TryCatch(async (req, res, next) => {
+  const { username, bio } = req.body;
+
+  const normalizedUsername = String(username || "")
+    .trim()
+    .toLowerCase();
+
+  const user = await User.findById(req.user);
+
+  if (!user) return next(new ErrorHandler("User not found", 404));
+
+  const existingUser = await User.findOne({ username: normalizedUsername, _id: { $ne: req.user } });
+
+  if (existingUser)
+    return next(new ErrorHandler("Username is already taken", 400));
+
+  user.username = normalizedUsername;
+
+  if (typeof bio === "string" && bio.trim().length > 0) {
+    user.bio = bio.trim();
+  }
+
+  await user.save();
+
+  return res.status(200).json({
+    success: true,
+    user,
+    message: "Profile updated",
+  });
+});
+
 export {
   acceptFriendRequest,
   getMyFriends,
@@ -311,6 +350,7 @@ export {
   newUser,
   searchUser,
   sendFriendRequest,
+  updateProfile,
   updateProfileImage,
   updateMyStatus,
 };

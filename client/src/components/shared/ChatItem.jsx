@@ -8,6 +8,7 @@ import moment from "moment";
 const ChatItem = ({
   avatar = [],
   name,
+  username,
   _id,
   groupChat = false,
   sameSender,
@@ -50,6 +51,11 @@ const ChatItem = ({
 
         <Stack>
           <Typography>{name}</Typography>
+          {!groupChat && username && (
+            <Typography variant="caption" sx={{ opacity: 0.85, color: "#67e8f9" }}>
+              {username.startsWith("@") ? username : `@${username}`}
+            </Typography>
+          )}
           {!groupChat && (
             <Typography variant="caption" sx={{ opacity: 0.75 }}>
               {statusLabel}

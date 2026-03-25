@@ -9,6 +9,7 @@ import {
   newUser,
   searchUser,
   sendFriendRequest,
+  updateProfile,
   updateProfileImage,
   updateMyStatus,
 } from "../controllers/user.js";
@@ -17,6 +18,7 @@ import {
   loginValidator,
   registerValidator,
   sendRequestValidator,
+  updateProfileValidator,
   validateHandler,
 } from "../lib/validators.js";
 import { isAuthenticated } from "../middlewares/auth.js";
@@ -33,6 +35,7 @@ app.use(isAuthenticated);
 
 app.get("/me", getMyProfile);
 
+app.put("/profile", updateProfileValidator(), validateHandler, updateProfile);
 app.put("/profile/avatar", singleAvatar, updateProfileImage);
 app.put("/status", updateMyStatus);
 

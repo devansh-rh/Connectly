@@ -1,6 +1,13 @@
 import { body, param, validationResult } from "express-validator";
 import { ErrorHandler } from "../utils/utility.js";
 
+const usernameRule = body("username")
+  .trim()
+  .isLength({ min: 3, max: 24 })
+  .withMessage("Username must be 3-24 characters")
+  .matches(/^[a-zA-Z0-9_@.]+$/)
+  .withMessage("Username can only contain letters, numbers, _, @ and .");
+
 const validateHandler = (req, res, next) => {
   const errors = validationResult(req);
 
@@ -16,6 +23,7 @@ const validateHandler = (req, res, next) => {
 const registerValidator = () => [
   body("name", "Please Enter Name").notEmpty(),
   body("username", "Please Enter Username").notEmpty(),
+  usernameRule,
   body("bio", "Please Enter Bio").notEmpty(),
   body("password", "Please Enter Password").notEmpty(),
 ];
@@ -23,6 +31,17 @@ const registerValidator = () => [
 const loginValidator = () => [
   body("username", "Please Enter Username").notEmpty(),
   body("password", "Please Enter Password").notEmpty(),
+];
+
+const updateProfileValidator = () => [
+  body("username", "Please Enter Username").notEmpty(),
+  usernameRule,
+  body("bio")
+    .optional()
+    .isString()
+    .withMessage("Bio must be text")
+    .isLength({ min: 1, max: 160 })
+    .withMessage("Bio must be 1-160 characters"),
 ];
 
 const newGroupValidator = () => [
@@ -88,5 +107,6 @@ export {
   renameValidator,
   sendAttachmentsValidator,
   sendRequestValidator,
+  updateProfileValidator,
   validateHandler,
 };

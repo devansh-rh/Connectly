@@ -15,6 +15,11 @@ const schema = new Schema(
       type: String,
       required: true,
       unique: true,
+      trim: true,
+      lowercase: true,
+      minlength: 3,
+      maxlength: 24,
+      match: [/^[a-z0-9_@.]+$/i, "Username can only contain letters, numbers, _, @ and ."],
     },
     password: {
       type: String,
