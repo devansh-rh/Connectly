@@ -53,6 +53,7 @@ const Chat = ({ chatId, user }) => {
 
   const containerRef = useRef(null);
   const bottomRef = useRef(null);
+  const setOldMessagesRef = useRef(null);
 
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
@@ -78,9 +79,15 @@ const Chat = ({ chatId, user }) => {
   const [reactToMessage] = useReactToMessageMutation();
   const [markMessagesRead] = useMarkMessagesReadMutation();
 
-  const chatDetails = useChatDetailsQuery({ chatId, populate: true, skip: !chatId });
+  const chatDetails = useChatDetailsQuery(
+    { chatId, populate: true },
+    { skip: !chatId }
+  );
 
-  const oldMessagesChunk = useGetMessagesQuery({ chatId, page });
+  const oldMessagesChunk = useGetMessagesQuery(
+    { chatId, page },
+    { skip: !chatId }
+  );
 
   const { data: oldMessages, setData: setOldMessages } = useInfiniteScrollTop(
     containerRef,
@@ -89,6 +96,10 @@ const Chat = ({ chatId, user }) => {
     setPage,
     oldMessagesChunk.data?.messages
   );
+
+  useEffect(() => {
+    setOldMessagesRef.current = setOldMessages;
+  }, [setOldMessages]);
 
   const errors = [
     { isError: chatDetails.isError, error: chatDetails.error },
@@ -99,6 +110,10 @@ const Chat = ({ chatId, user }) => {
   const memberIds = useMemo(
     () => members.map((member) => member?._id || member).filter(Boolean),
     [members]
+  );
+  const memberIdsKey = useMemo(
+    () => memberIds.map((id) => id?.toString()).sort().join(","),
+    [memberIds]
   );
   const isDirectChat = members.length === 2;
   const otherMember = useMemo(
@@ -142,7 +157,7 @@ const Chat = ({ chatId, user }) => {
     typingTimeout.current = setTimeout(() => {
       socket.emit(STOP_TYPING, { members: memberIds, chatId });
       setIamTyping(false);
-    }, [2000]);
+    }, 2000);
   };
 
   const handleFileOpen = (e) => {
@@ -220,17 +235,25 @@ const Chat = ({ chatId, user }) => {
   };
 
   useEffect(() => {
+    if (!chatId || !user?._id) return;
+
     socket.emit(CHAT_JOINED, { userId: user._id, members: memberIds });
     dispatch(removeNewMessagesAlert(chatId));
 
     return () => {
-      setMessages([]);
-      setMessage("");
-      setOldMessages([]);
-      setPage(1);
       socket.emit(CHAT_LEAVED, { userId: user._id, members: memberIds });
     };
-  }, [chatId, user?._id, memberIds, dispatch, setOldMessages, socket]);
+  }, [chatId, user?._id, memberIdsKey, dispatch, socket]);
+
+  useEffect(() => {
+    if (!chatId) return;
+
+    setMessages([]);
+    setMessage("");
+    setOldMessagesRef.current?.([]);
+    setPage(1);
+    setReplyTo(null);
+  }, [chatId]);
 
   useEffect(() => {
     if (bottomRef.current)
@@ -368,7 +391,7 @@ const Chat = ({ chatId, user }) => {
 
   useErrors(errors);
 
-  const allMessages = [...oldMessages, ...messages];
+  const allMessages = useMemo(() => [...oldMessages, ...messages], [oldMessages, messages]);
 
   useEffect(() => {
     if (!chatId || memberIds.length === 0 || !user?._id || allMessages.length === 0) return;

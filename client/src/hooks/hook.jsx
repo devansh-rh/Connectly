@@ -1,13 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 const useErrors = (errors = []) => {
+  const handledErrorKeysRef = useRef(new Set());
+
   useEffect(() => {
-    errors.forEach(({ isError, error, fallback }) => {
-      if (isError) {
-        if (fallback) fallback();
-        else toast.error(error?.data?.message || "Something went wrong");
+    errors.forEach(({ isError, error, fallback }, index) => {
+      const errorKey = `${index}-${error?.status || "na"}-${
+        error?.data?.message || error?.error || "unknown"
+      }`;
+
+      if (!isError) {
+        handledErrorKeysRef.current.delete(errorKey);
+        return;
       }
+
+      if (handledErrorKeysRef.current.has(errorKey)) return;
+
+      handledErrorKeysRef.current.add(errorKey);
+
+      if (fallback) fallback();
+      else toast.error(error?.data?.message || "Something went wrong");
     });
   }, [errors]);
 };
