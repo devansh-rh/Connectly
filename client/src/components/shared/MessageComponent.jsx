@@ -1,5 +1,13 @@
-import { Box, Typography, Tooltip, Stack, Chip, IconButton } from "@mui/material";
-import React, { memo } from "react";
+import {
+  Box,
+  Typography,
+  Tooltip,
+  Stack,
+  Chip,
+  IconButton,
+  Popover,
+} from "@mui/material";
+import React, { memo, useMemo, useState } from "react";
 import {
   accentPrimary,
   accentSecondary,
@@ -12,7 +20,9 @@ import { fileFormat } from "../../lib/features";
 import RenderAttachment from "./RenderAttachment";
 import { motion } from "framer-motion";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
+import DoneIcon from "@mui/icons-material/Done";
 import ReplyIcon from "@mui/icons-material/Reply";
+import AddReactionIcon from "@mui/icons-material/AddReaction";
 
 const emojiSplitRegex = /([\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}])/gu;
 const emojiTestRegex = /^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]$/u;
@@ -40,7 +50,16 @@ const renderContentWithLargerEmojis = (text) => {
   });
 };
 
-const MessageComponent = ({ message, user, onReply, onReact }) => {
+const MessageComponent = ({
+  message,
+  user,
+  onReply,
+  onReact,
+  isDirectChat = false,
+  otherMemberName = "",
+}) => {
+  const [reactionAnchorEl, setReactionAnchorEl] = useState(null);
+
   const {
     _id,
     sender,
@@ -51,10 +70,10 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
     reactions = [],
     seenBy = [],
     linkPreview,
+    isPending = false,
   } = message;
 
   const sameSender = sender?._id === user?._id;
-
   const sentTime = moment(createdAt).format("DD MMM YYYY, hh:mm:ss A");
 
   const reactionMap = reactions.reduce((acc, reaction) => {
@@ -75,10 +94,42 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
   const seenByOthers = seenBy.filter(
     (entry) => (entry.user?._id || entry.user)?.toString() !== user?._id?.toString()
   );
-  const latestSeenAt = seenByOthers
-    .map((entry) => entry.seenAt)
-    .filter(Boolean)
-    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+
+  const latestSeenEntry = useMemo(() => {
+    return [...seenByOthers]
+      .filter((entry) => entry?.seenAt)
+      .sort((a, b) => new Date(b.seenAt).getTime() - new Date(a.seenAt).getTime())[0];
+  }, [seenByOthers]);
+
+  const seenByName =
+    latestSeenEntry?.user?.name ||
+    (isDirectChat && otherMemberName ? otherMemberName : `${seenByOthers.length} users`);
+
+  const tickMeta = (() => {
+    if (!sameSender) return null;
+
+    if (isPending) {
+      return {
+        icon: <DoneIcon sx={{ fontSize: "0.9rem", opacity: 0.7 }} />,
+        title: "Sent",
+      };
+    }
+
+    if (seenByOthers.length > 0) {
+      return {
+        icon: <DoneAllIcon sx={{ fontSize: "0.9rem", opacity: 0.9, color: "#00a8ff" }} />,
+        title: "Read",
+      };
+    }
+
+    return {
+      icon: <DoneAllIcon sx={{ fontSize: "0.9rem", opacity: 0.7 }} />,
+      title: "Delivered",
+    };
+  })();
+
+  const reactionPickerOpen = Boolean(reactionAnchorEl);
+  const reactionPickerEmojis = ["👍", "❤️", "🔥", "😂", "😮", "👏", "🎉", "😢"];
 
   return (
     <motion.div
@@ -112,7 +163,9 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
             ? `linear-gradient(135deg, ${accentPrimary} 0%, rgb(139, 92, 246) 100%)`
             : messageOther,
           color: sameSender ? messageSelfText : messageOtherText,
-          borderRadius: sameSender ? "1.25rem 1.25rem 0.5rem 1.25rem" : "1.25rem 1.25rem 1.25rem 0.5rem",
+          borderRadius: sameSender
+            ? "1.25rem 1.25rem 0.5rem 1.25rem"
+            : "1.25rem 1.25rem 1.25rem 0.5rem",
           padding: "0.75rem 1rem",
           wordWrap: "break-word",
           boxShadow: sameSender
@@ -168,21 +221,38 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
             <Box
               sx={{
                 mt: content ? "0.6rem" : 0,
-                p: "0.6rem 0.75rem",
+                p: 0,
                 border: "1px solid rgba(6, 182, 212, 0.35)",
                 borderRadius: "0.7rem",
                 backgroundColor: "rgba(6, 182, 212, 0.1)",
+                overflow: "hidden",
               }}
             >
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                {linkPreview.siteName || "Link"}
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                {linkPreview.title || linkPreview.url}
-              </Typography>
-              <Typography variant="caption" sx={{ opacity: 0.85 }}>
-                {linkPreview.description || linkPreview.url}
-              </Typography>
+              {linkPreview.image && (
+                <Box
+                  component="img"
+                  src={linkPreview.image}
+                  alt={linkPreview.title || "Link preview"}
+                  sx={{
+                    width: "100%",
+                    height: 140,
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              )}
+
+              <Box sx={{ p: "0.6rem 0.75rem" }}>
+                <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                  {linkPreview.siteName || "Link"}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  {linkPreview.title || linkPreview.url}
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.85 }}>
+                  {linkPreview.description || linkPreview.url}
+                </Typography>
+              </Box>
             </Box>
           </a>
         )}
@@ -240,26 +310,10 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
           >
             {sameSender ? `Sent: ${sentTime}` : `Received: ${sentTime}`}
           </Typography>
-          {sameSender && (
-            <Tooltip
-              title={
-                seenByOthers.length > 0
-                  ? `Read by ${seenByOthers.length}`
-                  : "Delivered"
-              }
-            >
-              <DoneAllIcon
-                sx={{
-                  fontSize: "0.9rem",
-                  opacity: 0.7,
-                  color: seenByOthers.length > 0 ? "#00a8ff" : "inherit",
-                }}
-              />
-            </Tooltip>
-          )}
+          {sameSender && tickMeta && <Tooltip title={tickMeta.title}>{tickMeta.icon}</Tooltip>}
         </Box>
 
-        {sameSender && latestSeenAt && (
+        {sameSender && latestSeenEntry && (
           <Typography
             variant="caption"
             sx={{
@@ -271,7 +325,9 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
               mt: 0.1,
             }}
           >
-            Read: {moment(latestSeenAt).format("DD MMM YYYY, hh:mm:ss A")}
+            Read{isDirectChat && seenByName ? ` by ${seenByName}` : ""}: {moment(
+              latestSeenEntry.seenAt
+            ).format("DD MMM YYYY, hh:mm:ss A")}
           </Typography>
         )}
       </Box>
@@ -293,25 +349,60 @@ const MessageComponent = ({ message, user, onReply, onReact }) => {
             }}
           />
         ))}
-        <Chip
+
+        <IconButton
           size="small"
-          label="👍"
-          onClick={() => onReact?.(_id, "👍")}
-          sx={{ height: 22, color: "white", backgroundColor: "rgba(255,255,255,0.06)" }}
-        />
-        <Chip
-          size="small"
-          label="🔥"
-          onClick={() => onReact?.(_id, "🔥")}
-          sx={{ height: 22, color: "white", backgroundColor: "rgba(255,255,255,0.06)" }}
-        />
-        <Chip
-          size="small"
-          label="😂"
-          onClick={() => onReact?.(_id, "😂")}
-          sx={{ height: 22, color: "white", backgroundColor: "rgba(255,255,255,0.06)" }}
-        />
+          onClick={(e) => setReactionAnchorEl(e.currentTarget)}
+          sx={{
+            width: 24,
+            height: 24,
+            color: "rgba(226,232,240,0.9)",
+            backgroundColor: "rgba(255,255,255,0.06)",
+            border: "1px solid rgba(124,58,237,0.35)",
+          }}
+        >
+          <AddReactionIcon sx={{ fontSize: "0.95rem" }} />
+        </IconButton>
       </Stack>
+
+      <Popover
+        open={reactionPickerOpen}
+        anchorEl={reactionAnchorEl}
+        onClose={() => setReactionAnchorEl(null)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "center" }}
+        PaperProps={{
+          sx: {
+            p: 0.6,
+            borderRadius: "0.8rem",
+            backgroundColor: "#121327",
+            border: "1px solid rgba(124, 58, 237, 0.35)",
+          },
+        }}
+      >
+        <Stack direction="row" spacing={0.35}>
+          {reactionPickerEmojis.map((emoji) => (
+            <IconButton
+              key={`${_id}-${emoji}`}
+              size="small"
+              onClick={() => {
+                onReact?.(_id, emoji);
+                setReactionAnchorEl(null);
+              }}
+              sx={{
+                borderRadius: "0.55rem",
+                fontSize: "1.05rem",
+                color: "white",
+                "&:hover": {
+                  backgroundColor: "rgba(124, 58, 237, 0.2)",
+                },
+              }}
+            >
+              {emoji}
+            </IconButton>
+          ))}
+        </Stack>
+      </Popover>
     </motion.div>
   );
 };

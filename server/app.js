@@ -281,6 +281,7 @@ io.on("connection", (socket) => {
         chatId,
         messageIds: updatedMessageIds,
         userId: user._id,
+        userName: user.name,
         seenAt: new Date().toISOString(),
       });
     }

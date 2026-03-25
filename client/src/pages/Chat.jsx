@@ -78,7 +78,7 @@ const Chat = ({ chatId, user }) => {
   const [reactToMessage] = useReactToMessageMutation();
   const [markMessagesRead] = useMarkMessagesReadMutation();
 
-  const chatDetails = useChatDetailsQuery({ chatId, skip: !chatId });
+  const chatDetails = useChatDetailsQuery({ chatId, populate: true, skip: !chatId });
 
   const oldMessagesChunk = useGetMessagesQuery({ chatId, page });
 
@@ -95,7 +95,16 @@ const Chat = ({ chatId, user }) => {
     { isError: oldMessagesChunk.isError, error: oldMessagesChunk.error },
   ];
 
-  const members = chatDetails?.data?.chat?.members;
+  const members = chatDetails?.data?.chat?.members || [];
+  const memberIds = useMemo(
+    () => members.map((member) => member?._id || member).filter(Boolean),
+    [members]
+  );
+  const isDirectChat = members.length === 2;
+  const otherMember = useMemo(
+    () => members.find((member) => (member?._id || member)?.toString() !== user?._id?.toString()),
+    [members, user?._id]
+  );
 
   const emojiGroups = [
     {
@@ -124,14 +133,14 @@ const Chat = ({ chatId, user }) => {
     setMessage(e.target.value);
 
     if (!IamTyping) {
-      socket.emit(START_TYPING, { members, chatId });
+      socket.emit(START_TYPING, { members: memberIds, chatId });
       setIamTyping(true);
     }
 
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
 
     typingTimeout.current = setTimeout(() => {
-      socket.emit(STOP_TYPING, { members, chatId });
+      socket.emit(STOP_TYPING, { members: memberIds, chatId });
       setIamTyping(false);
     }, [2000]);
   };
@@ -146,10 +155,32 @@ const Chat = ({ chatId, user }) => {
 
     if (!message.trim()) return;
 
+    const optimisticMessage = {
+      _id: `temp-${Date.now()}`,
+      content: message,
+      sender: {
+        _id: user._id,
+        name: user.name,
+      },
+      chat: chatId,
+      replyTo: replyTo
+        ? {
+            _id: replyTo._id,
+            content: replyTo.content,
+            sender: { name: replyTo.sender?.name },
+          }
+        : null,
+      seenBy: [{ user: user._id, seenAt: new Date().toISOString() }],
+      createdAt: new Date().toISOString(),
+      isPending: true,
+    };
+
+    setMessages((prev) => [...prev, optimisticMessage]);
+
     // Emitting the message to the server
     socket.emit(NEW_MESSAGE, {
       chatId,
-      members,
+      members: memberIds,
       message,
       replyTo: replyTo
         ? {
@@ -189,7 +220,7 @@ const Chat = ({ chatId, user }) => {
   };
 
   useEffect(() => {
-    socket.emit(CHAT_JOINED, { userId: user._id, members });
+    socket.emit(CHAT_JOINED, { userId: user._id, members: memberIds });
     dispatch(removeNewMessagesAlert(chatId));
 
     return () => {
@@ -197,9 +228,9 @@ const Chat = ({ chatId, user }) => {
       setMessage("");
       setOldMessages([]);
       setPage(1);
-      socket.emit(CHAT_LEAVED, { userId: user._id, members });
+      socket.emit(CHAT_LEAVED, { userId: user._id, members: memberIds });
     };
-  }, [chatId]);
+  }, [chatId, user?._id, memberIds, dispatch, setOldMessages, socket]);
 
   useEffect(() => {
     if (bottomRef.current)
@@ -214,9 +245,24 @@ const Chat = ({ chatId, user }) => {
     (data) => {
       if (data.chatId !== chatId) return;
 
-      setMessages((prev) => [...prev, data.message]);
+      setMessages((prev) => {
+        if (data?.message?.sender?._id === user?._id) {
+          const withoutPending = [...prev];
+          const pendingIndex = withoutPending.findIndex(
+            (msg) => msg.isPending && msg.sender?._id === user?._id
+          );
+
+          if (pendingIndex >= 0) {
+            withoutPending.splice(pendingIndex, 1);
+          }
+
+          return [...withoutPending, data.message];
+        }
+
+        return [...prev, data.message];
+      });
     },
-    [chatId]
+    [chatId, user?._id]
   );
 
   const startTypingListener = useCallback(
@@ -277,7 +323,10 @@ const Chat = ({ chatId, user }) => {
             ...msg,
             seenBy: [
               ...(msg.seenBy || []),
-              { user: data.userId, seenAt: data.seenAt },
+              {
+                user: { _id: data.userId, name: data.userName || "User" },
+                seenAt: data.seenAt,
+              },
             ],
           };
         });
@@ -322,7 +371,7 @@ const Chat = ({ chatId, user }) => {
   const allMessages = [...oldMessages, ...messages];
 
   useEffect(() => {
-    if (!chatId || !members?.length || !user?._id || allMessages.length === 0) return;
+    if (!chatId || memberIds.length === 0 || !user?._id || allMessages.length === 0) return;
 
     const unreadIncomingIds = allMessages
       .filter((msg) => msg?.sender?._id !== user._id)
@@ -339,12 +388,12 @@ const Chat = ({ chatId, user }) => {
 
     socket.emit(MESSAGE_READ, {
       chatId,
-      members,
+      members: memberIds,
       messageIds: unreadIncomingIds,
     });
 
     markMessagesRead({ chatId, messageIds: unreadIncomingIds });
-  }, [allMessages, chatId, members, socket, user?._id, markMessagesRead]);
+  }, [allMessages, chatId, memberIds, socket, user?._id, markMessagesRead]);
 
   const isEmojiPickerOpen = Boolean(emojiAnchorEl);
   const activeEmojis = emojiGroups[activeEmojiTab]?.emojis || [];
@@ -385,6 +434,8 @@ const Chat = ({ chatId, user }) => {
             key={i._id}
             message={i}
             user={user}
+            isDirectChat={isDirectChat}
+            otherMemberName={otherMember?.name}
             onReply={(msg) => setReplyTo(msg)}
             onReact={handleReact}
           />

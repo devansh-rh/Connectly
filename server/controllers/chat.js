@@ -425,6 +425,7 @@ const getMessages = TryCatch(async (req, res, next) => {
       .skip(skip)
       .limit(resultPerPage)
       .populate("sender", "name")
+      .populate("seenBy.user", "name")
       .populate({
         path: "replyTo",
         select: "content sender createdAt",
@@ -493,6 +494,8 @@ const reactToMessage = TryCatch(async (req, res, next) => {
 const markMessagesRead = TryCatch(async (req, res, next) => {
   const { chatId, messageIds = [] } = req.body;
 
+  const me = await User.findById(req.user, "name");
+
   const chat = await Chat.findById(chatId);
   if (!chat) return next(new ErrorHandler("Chat not found", 404));
 
@@ -524,6 +527,7 @@ const markMessagesRead = TryCatch(async (req, res, next) => {
       chatId,
       messageIds: updatedMessageIds,
       userId: req.user,
+      userName: me?.name || "User",
       seenAt: new Date().toISOString(),
     });
   }
