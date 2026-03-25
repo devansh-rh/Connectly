@@ -43,6 +43,7 @@ import { setIsFileMenu } from "../redux/reducers/misc";
 import { removeNewMessagesAlert } from "../redux/reducers/chat";
 import { TypingLoader } from "../components/layout/Loaders";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const Chat = ({ chatId, user }) => {
   const RECENT_EMOJIS_KEY = "connectly_recent_emojis";
@@ -78,6 +79,14 @@ const Chat = ({ chatId, user }) => {
 
   const [reactToMessage] = useReactToMessageMutation();
   const [markMessagesRead] = useMarkMessagesReadMutation();
+
+  const applyReactionsToList = useCallback((list = [], targetMessageId, nextReactions = []) => {
+    return list.map((msg) =>
+      msg._id?.toString() === targetMessageId?.toString()
+        ? { ...msg, reactions: nextReactions }
+        : msg
+    );
+  }, []);
 
   const chatDetails = useChatDetailsQuery(
     { chatId, populate: true },
@@ -210,10 +219,19 @@ const Chat = ({ chatId, user }) => {
   };
 
   const handleReact = async (messageId, emoji) => {
+    if (!chatId || !messageId || messageId.toString().startsWith("temp-")) {
+      toast.error("Please wait for the message to be delivered before reacting.");
+      return;
+    }
+
     try {
-      await reactToMessage({ chatId, messageId, emoji });
-    } catch {
-      // Error toast is already handled globally by API hooks where needed.
+      const response = await reactToMessage({ chatId, messageId, emoji }).unwrap();
+      const nextReactions = response?.reactions || [];
+
+      setMessages((prev) => applyReactionsToList(prev, messageId, nextReactions));
+      setOldMessages((prev) => applyReactionsToList(prev, messageId, nextReactions));
+    } catch (error) {
+      toast.error(error?.data?.message || "Failed to react to message");
     }
   };
 
@@ -309,17 +327,14 @@ const Chat = ({ chatId, user }) => {
     (data) => {
       if (data.chatId !== chatId) return;
 
-      const applyReactions = (list = []) =>
-        list.map((msg) =>
-          msg._id?.toString() === data.messageId?.toString()
-            ? { ...msg, reactions: data.reactions }
-            : msg
-        );
-
-      setMessages((prev) => applyReactions(prev));
-      setOldMessages((prev) => applyReactions(prev));
+      setMessages((prev) =>
+        applyReactionsToList(prev, data.messageId, data.reactions)
+      );
+      setOldMessages((prev) =>
+        applyReactionsToList(prev, data.messageId, data.reactions)
+      );
     },
-    [chatId, setOldMessages]
+    [chatId, setOldMessages, applyReactionsToList]
   );
 
   const readReceiptListener = useCallback(
