@@ -19,7 +19,7 @@ This project showcases end-to-end product engineering, not just UI screens:
 
 ## Live Demo
 
-- Frontend: https://connectly-app.vercel.app
+- Frontend: https://connectly1.vercel.app/
 - Backend API: Add your Render URL here
 
 ## Recruiter Snapshot
